@@ -1,0 +1,169 @@
+        false
+
+
+    Settings.RoleLabels =
+        false
+
+
+    Settings.CoinESP =
+        false
+
+
+    Settings.DroppedGunESP =
+        false
+
+
+    Settings.AutoCoinFarm =
+        false
+
+
+    Settings.AutoGunPickup =
+        false
+
+
+    Settings.AutoShootMurderer =
+        false
+
+
+    Settings.AimCamera =
+        false
+
+
+    Settings.Noclip =
+        false
+
+
+    Settings.Fly =
+        false
+
+
+    Runtime.Action =
+        nil
+
+
+    ClearPlayerESP()
+
+    ClearCoinESP()
+
+    ClearGunESP()
+
+    RestoreNoclip()
+
+    DestroyFly()
+
+    CancelSpectate()
+
+
+    for _,
+        connection
+    in ipairs(
+        self.Connections
+    )
+    do
+
+        pcall(function()
+
+            connection:
+            Disconnect()
+
+        end)
+    end
+
+
+    table.clear(
+        self.Connections
+    )
+
+
+    if ENV.__SALTY_MM2
+        == self
+    then
+
+        ENV.__SALTY_MM2 =
+            nil
+    end
+
+
+    print(
+        "[Salty MM2] stopped."
+    )
+end
+
+
+UtilityTab:
+Button({
+
+    Title =
+        "Stop Salty MM2",
+
+    Icon =
+        "power",
+
+    Callback =
+        function()
+
+            Runtime:
+            Destroy()
+        end,
+})
+
+
+--==============================================================
+-- STARTUP
+--==============================================================
+
+if game.PlaceId
+    ~= EXPECTED_PLACE
+then
+
+    Notify(
+        "Place Warning",
+
+        "Expected "
+        .. EXPECTED_PLACE
+        .. " • joined "
+        .. game.PlaceId,
+
+        "triangle-alert"
+    )
+end
+
+
+SetPerformanceMode(
+    true
+)
+
+
+task.spawn(function()
+
+    task.wait(
+        0.7
+    )
+
+
+    RefreshRoundData()
+
+    UpdateRoleCache()
+
+end)
+
+
+Notify(
+    "Salty MM2 " .. VERSION,
+
+    "PERFORMANCE ENGINE READY 🧊🔪",
+
+    "zap"
+)
+
+
+print("")
+print("====================================================")
+print("SALTY MM2 " .. VERSION)
+print("PERFORMANCE EDITION")
+print("Role:", Runtime.LocalRole)
+print("Cached Coins:", CountTable(Runtime.Coins))
+print("Cached Gun Candidates:", CountTable(Runtime.GunCandidates))
+print("Performance Mode: ON")
+print("====================================================")
+print("")
