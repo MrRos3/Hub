@@ -1,5 +1,5 @@
--- Velora Hub bootstrap v9
--- Crisp neon edition: persistent favorites, readable surfaces, no glow blobs.
+-- Velora Hub bootstrap v10
+-- Clean neon edition: persistent favorites, no decorative rails, no glow blobs.
 
 local CORE_URL = "https://raw.githubusercontent.com/MrRos3/Hub/main/HubCore.lua"
 local cache = tostring(os.time()) .. "-" .. tostring(math.random(100000, 999999))
@@ -20,7 +20,7 @@ local function replaceExact(needle, replacement, label)
     source = source:sub(1, startAt - 1) .. replacement .. source:sub(endAt + 1)
 end
 
--- Inject real scripts that live outside the frozen core manifest.
+-- Inject additional real scripts.
 local marker = "\n}\n\nlocal function getGuiParent()"
 local insertAt = string.find(source, marker, 1, true)
 if not insertAt then
@@ -39,7 +39,7 @@ local extraEntries = [=[
 
 source = source:sub(1, insertAt - 1) .. "\n" .. extraEntries .. source:sub(insertAt)
 
--- Brighter dark-neon palette. Still black-first, but actually readable.
+-- Clean black / purple neon palette.
 replaceExact(
 [=[local THEME = {
     Background = Color3.fromHex("#000000"),
@@ -57,33 +57,33 @@ replaceExact(
 }]=],
 [=[local THEME = {
     Background = Color3.fromHex("#020203"),
-    Panel = Color3.fromHex("#08070A"),
-    Dialog = Color3.fromHex("#0E0B12"),
-    Element = Color3.fromHex("#15111C"),
-    ElementHover = Color3.fromHex("#1D1728"),
-    Button = Color3.fromHex("#241632"),
-    Accent = Color3.fromHex("#9A6BFF"),
-    AccentBright = Color3.fromHex("#DA70FF"),
-    Outline = Color3.fromHex("#5D3E86"),
+    Panel = Color3.fromHex("#070708"),
+    Dialog = Color3.fromHex("#0C0A0F"),
+    Element = Color3.fromHex("#141119"),
+    ElementHover = Color3.fromHex("#1A1621"),
+    Button = Color3.fromHex("#1C1426"),
+    Accent = Color3.fromHex("#8B63D9"),
+    AccentBright = Color3.fromHex("#C08AFF"),
+    Outline = Color3.fromHex("#49365F"),
     Text = Color3.fromHex("#FFFFFF"),
-    Muted = Color3.fromHex("#C1B7CC"),
-    Faint = Color3.fromHex("#81778D"),
-    NeonViolet = Color3.fromHex("#A96FFF"),
-    NeonPink = Color3.fromHex("#FF62B2"),
-    NeonCyan = Color3.fromHex("#63DDFF"),
+    Muted = Color3.fromHex("#B8AFBF"),
+    Faint = Color3.fromHex("#756C7D"),
+    Neon = Color3.fromHex("#A778FF"),
+    NeonSoft = Color3.fromHex("#7650B5"),
+    Pink = Color3.fromHex("#FF68B0"),
 }]=],
 "theme"
 )
 
--- Tighter window and clearer game backdrop.
-replaceExact("BackgroundTransparency = 0.66,", "BackgroundTransparency = 0.50,", "backdrop")
+-- Tighter window and softer backdrop.
+replaceExact("BackgroundTransparency = 0.66,", "BackgroundTransparency = 0.52,", "backdrop")
 replaceExact("Size = UDim2.fromScale(0.74, 0.72),", "Size = UDim2.fromScale(0.68, 0.56),", "window size")
 replaceExact("MinSize = Vector2.new(860, 530),", "MinSize = Vector2.new(820, 460),", "minimum size")
 replaceExact("MaxSize = Vector2.new(1220, 760),", "MaxSize = Vector2.new(1080, 620),", "maximum size")
 replaceExact("tween(blur, 0.2, { Size = 9 })", "tween(blur, 0.2, { Size = 6 })", "blur strength")
 replaceExact("tween(blur, 0.16, { Size = value and 9 or 0 })", "tween(blur, 0.16, { Size = value and 6 or 0 })", "toggle blur")
 
--- Four scripts stay balanced as 2x2.
+-- Keep small libraries balanced as 2x2.
 replaceExact(
 [=[    local columns
     if width >= 1060 then
@@ -191,159 +191,62 @@ replaceExact(
 
         saveFavorites()
         tween(favorite, 0.12, {
-            ImageColor3 = favorites[entry.Id] and THEME.NeonPink or THEME.Faint,
-            ImageTransparency = favorites[entry.Id] and 0 or 0.08,
+            ImageColor3 = favorites[entry.Id] and THEME.Pink or THEME.Faint,
+            ImageTransparency = favorites[entry.Id] and 0 or 0.06,
         })
     end)]=],
 "favorite save handler"
 )
 
--- Readable notification cards.
+-- Slightly roomier notifications without changing their structure.
 replaceExact("Size = UDim2.fromOffset(350, 86),", "Size = UDim2.fromOffset(366, 92),", "notification size")
-replaceExact(
-[=[                ColorSequenceKeypoint.new(0, Color3.fromHex("#16090D")),
-                ColorSequenceKeypoint.new(0.55, THEME.Dialog),
-                ColorSequenceKeypoint.new(1, Color3.fromHex("#080608")),]=],
-[=[                ColorSequenceKeypoint.new(0, Color3.fromHex("#1A1225")),
-                ColorSequenceKeypoint.new(0.55, Color3.fromHex("#100C16")),
-                ColorSequenceKeypoint.new(1, Color3.fromHex("#09080D")),]=],
-"notification gradient"
-)
 
--- Crisp neon polish. IMPORTANT: no UIGradient on CanvasGroup 'main'.
--- That darkened the entire rendered group on some executors.
+-- Clean neon polish. No rails, no blobs, no multi-color border streaks.
 replaceExact(
 [=[refresh()
 updateCardSelection()]=],
 [=[--==============================================================
--- CRISP NEON POLISH
+-- CLEAN NEON POLISH
 --==============================================================
 
-local function addGradient(target, colors, rotation, name)
-    return create("UIGradient", {
-        Name = name or "VeloraGradient",
-        Color = ColorSequence.new(colors),
-        Rotation = rotation or 0,
-        Parent = target,
-    })
-end
-
--- Keep the CanvasGroup itself flat and readable.
 main.BackgroundColor3 = THEME.Panel
 main.BackgroundTransparency = 0.02
 main.GroupTransparency = 0
 
 local mainStroke = main:FindFirstChildOfClass("UIStroke")
 if mainStroke then
-    mainStroke.Color = THEME.NeonViolet
-    mainStroke.Transparency = 0.12
-    mainStroke.Thickness = 1.25
-    addGradient(mainStroke, {
-        ColorSequenceKeypoint.new(0, THEME.NeonPink),
-        ColorSequenceKeypoint.new(0.48, THEME.NeonViolet),
-        ColorSequenceKeypoint.new(1, THEME.NeonCyan),
-    }, 0, "NeonBorder")
+    mainStroke.Color = THEME.Neon
+    mainStroke.Transparency = 0.34
+    mainStroke.Thickness = 1
 end
 
--- Background-only surface so gradients never tint text/content.
-local surface = create("Frame", {
-    Name = "Surface",
-    Size = UDim2.fromScale(1, 1),
-    BackgroundColor3 = Color3.fromHex("#0B0910"),
-    BorderSizePixel = 0,
-    ZIndex = 0,
-    Parent = main,
-}, {
-    corner(13),
-})
-addGradient(surface, {
-    ColorSequenceKeypoint.new(0, Color3.fromHex("#0E0A13")),
-    ColorSequenceKeypoint.new(0.52, Color3.fromHex("#09080D")),
-    ColorSequenceKeypoint.new(1, Color3.fromHex("#081016")),
-}, 115, "SurfaceGradient")
-
-local topSurface = create("Frame", {
-    Name = "TopSurface",
-    Size = UDim2.fromScale(1, 1),
-    BackgroundColor3 = Color3.fromHex("#120D18"),
-    BorderSizePixel = 0,
-    ZIndex = 0,
-    Parent = top,
-})
-addGradient(topSurface, {
-    ColorSequenceKeypoint.new(0, Color3.fromHex("#171020")),
-    ColorSequenceKeypoint.new(0.55, Color3.fromHex("#100C16")),
-    ColorSequenceKeypoint.new(1, Color3.fromHex("#0B1118")),
-}, 0, "TopSurfaceGradient")
-
-local topRail = create("Frame", {
-    Name = "NeonTopRail",
-    Position = UDim2.fromOffset(14, 0),
-    Size = UDim2.new(1, -28, 0, 2),
-    BackgroundColor3 = Color3.new(1, 1, 1),
-    BorderSizePixel = 0,
-    ZIndex = 50,
-    Parent = main,
-}, { corner(2) })
-addGradient(topRail, {
-    ColorSequenceKeypoint.new(0, THEME.NeonPink),
-    ColorSequenceKeypoint.new(0.5, THEME.NeonViolet),
-    ColorSequenceKeypoint.new(1, THEME.NeonCyan),
-}, 0, "TopRailGradient")
-
-local bottomRail = create("Frame", {
-    Name = "NeonBottomRail",
-    AnchorPoint = Vector2.new(0, 1),
-    Position = UDim2.new(0, 22, 1, 0),
-    Size = UDim2.new(1, -44, 0, 1),
-    BackgroundColor3 = THEME.NeonViolet,
-    BackgroundTransparency = 0.38,
-    BorderSizePixel = 0,
-    ZIndex = 50,
-    Parent = main,
-})
-addGradient(bottomRail, {
-    ColorSequenceKeypoint.new(0, THEME.NeonPink),
-    ColorSequenceKeypoint.new(0.5, THEME.NeonViolet),
-    ColorSequenceKeypoint.new(1, THEME.NeonCyan),
-}, 0, "BottomRailGradient")
+-- Keep the topbar clean and slightly separated from the body.
+top.BackgroundColor3 = THEME.Dialog
+top.BackgroundTransparency = 0.03
 
 local brandStroke = brandIcon:FindFirstChildOfClass("UIStroke")
 if brandStroke then
-    brandStroke.Color = THEME.NeonViolet
-    brandStroke.Transparency = 0.16
-    TweenService:Create(
-        brandStroke,
-        TweenInfo.new(2.0, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-        { Transparency = 0.48 }
-    ):Play()
+    brandStroke.Color = THEME.Neon
+    brandStroke.Transparency = 0.32
 end
 
 local searchStroke = searchWrap:FindFirstChildOfClass("UIStroke")
 if searchStroke then
     searchStroke.Color = THEME.Outline
-    searchStroke.Transparency = 0.28
-    searchBox.Focused:Connect(function()
-        tween(searchStroke, 0.16, { Color = THEME.NeonViolet, Transparency = 0.02 })
-        tween(searchWrap, 0.16, { BackgroundColor3 = Color3.fromHex("#1A1422") })
-    end)
-    searchBox.FocusLost:Connect(function()
-        tween(searchStroke, 0.16, { Color = THEME.Outline, Transparency = 0.28 })
-        tween(searchWrap, 0.16, { BackgroundColor3 = THEME.Element })
-    end)
-end
+    searchStroke.Transparency = 0.34
 
-local accentPalette = { THEME.NeonViolet, THEME.NeonPink, THEME.NeonCyan }
-local function accentFor(id)
-    local score = 0
-    for i = 1, #id do
-        score = score + string.byte(id, i)
-    end
-    return accentPalette[(score % #accentPalette) + 1]
+    searchBox.Focused:Connect(function()
+        tween(searchStroke, 0.14, { Color = THEME.Neon, Transparency = 0.08 })
+        tween(searchWrap, 0.14, { BackgroundColor3 = Color3.fromHex("#18131E") })
+    end)
+
+    searchBox.FocusLost:Connect(function()
+        tween(searchStroke, 0.14, { Color = THEME.Outline, Transparency = 0.34 })
+        tween(searchWrap, 0.14, { BackgroundColor3 = THEME.Element })
+    end)
 end
 
 for id, data in pairs(cards) do
-    local accent = accentFor(id)
     local card = data.Card
     local cardStroke = data.Stroke
     local selectButton = data.Select
@@ -352,89 +255,81 @@ for id, data in pairs(cards) do
 
     card.BackgroundColor3 = Color3.fromHex("#15111A")
     card.BackgroundTransparency = 0.02
-    cardStroke.Color = accent
-    cardStroke.Transparency = 0.46
+    cardStroke.Color = THEME.NeonSoft
+    cardStroke.Transparency = 0.42
     cardStroke.Thickness = 1
-
-    -- Thin neon rail, not a blob.
-    local rail = create("Frame", {
-        Name = "AccentRail",
-        Position = UDim2.fromOffset(10, 0),
-        Size = UDim2.new(1, -20, 0, 2),
-        BackgroundColor3 = accent,
-        BackgroundTransparency = 0.18,
-        BorderSizePixel = 0,
-        ZIndex = 8,
-        Parent = card,
-    }, { corner(2) })
 
     local initialBox = card:FindFirstChildWhichIsA("Frame")
     if initialBox then
-        initialBox.BackgroundColor3 = Color3.fromHex("#23182E")
+        initialBox.BackgroundColor3 = Color3.fromHex("#211729")
         initialBox.BackgroundTransparency = 0.02
         local initialStroke = initialBox:FindFirstChildOfClass("UIStroke")
         if initialStroke then
-            initialStroke.Color = accent
-            initialStroke.Transparency = 0.22
+            initialStroke.Color = THEME.NeonSoft
+            initialStroke.Transparency = 0.34
         end
     end
 
-    selectButton.BackgroundColor3 = Color3.fromHex("#21172C")
+    selectButton.BackgroundColor3 = Color3.fromHex("#1D1624")
     selectButton.BackgroundTransparency = 0.02
     local selectStroke = selectButton:FindFirstChildOfClass("UIStroke")
     if selectStroke then
-        selectStroke.Color = accent
-        selectStroke.Transparency = 0.28
+        selectStroke.Color = THEME.NeonSoft
+        selectStroke.Transparency = 0.36
     end
 
     if favorite then
-        favorite.ImageColor3 = favorites[id] and THEME.NeonPink or THEME.Faint
-        favorite.ImageTransparency = favorites[id] and 0 or 0.04
+        favorite.ImageColor3 = favorites[id] and THEME.Pink or THEME.Faint
+        favorite.ImageTransparency = favorites[id] and 0 or 0.06
+
         favorite.MouseEnter:Connect(function()
-            tween(favorite, 0.10, { ImageColor3 = THEME.NeonPink, ImageTransparency = 0 })
+            tween(favorite, 0.10, { ImageColor3 = THEME.Pink, ImageTransparency = 0 })
         end)
+
         favorite.MouseLeave:Connect(function()
             tween(favorite, 0.10, {
-                ImageColor3 = favorites[id] and THEME.NeonPink or THEME.Faint,
-                ImageTransparency = favorites[id] and 0 or 0.04,
+                ImageColor3 = favorites[id] and THEME.Pink or THEME.Faint,
+                ImageTransparency = favorites[id] and 0 or 0.06,
             })
         end)
     end
 
     card.MouseEnter:Connect(function()
-        tween(scale, 0.14, { Scale = 1.012 })
-        tween(card, 0.14, { BackgroundColor3 = Color3.fromHex("#1B1522") })
-        tween(cardStroke, 0.14, { Transparency = 0.04, Color = accent })
-        tween(rail, 0.14, { BackgroundTransparency = 0 })
+        tween(scale, 0.12, { Scale = 1.009 })
+        tween(card, 0.12, { BackgroundColor3 = Color3.fromHex("#1A1520") })
+        tween(cardStroke, 0.12, { Color = THEME.Neon, Transparency = 0.10 })
         if selectStroke then
-            tween(selectStroke, 0.14, { Transparency = 0.04 })
+            tween(selectStroke, 0.12, { Color = THEME.Neon, Transparency = 0.14 })
         end
     end)
 
     card.MouseLeave:Connect(function()
-        tween(scale, 0.16, { Scale = 1 })
-        tween(card, 0.16, { BackgroundColor3 = selectedId == id and THEME.Button or Color3.fromHex("#15111A") })
-        tween(cardStroke, 0.16, {
-            Transparency = selectedId == id and 0.12 or 0.46,
-            Color = selectedId == id and THEME.AccentBright or accent,
+        tween(scale, 0.14, { Scale = 1 })
+        tween(card, 0.14, {
+            BackgroundColor3 = selectedId == id and THEME.Button or Color3.fromHex("#15111A")
         })
-        tween(rail, 0.16, { BackgroundTransparency = 0.18 })
+        tween(cardStroke, 0.14, {
+            Color = selectedId == id and THEME.AccentBright or THEME.NeonSoft,
+            Transparency = selectedId == id and 0.16 or 0.42,
+        })
         if selectStroke then
-            tween(selectStroke, 0.16, { Transparency = 0.28 })
+            tween(selectStroke, 0.14, { Color = THEME.NeonSoft, Transparency = 0.36 })
         end
     end)
 end
 
 for name, button in pairs(filterButtons) do
     local filterStroke = button:FindFirstChildOfClass("UIStroke")
+
     button.MouseEnter:Connect(function()
         if currentFilter ~= name then
-            tween(button, 0.12, { BackgroundColor3 = Color3.fromHex("#1D1626") })
+            tween(button, 0.12, { BackgroundColor3 = Color3.fromHex("#1A1520") })
             if filterStroke then
-                tween(filterStroke, 0.12, { Color = THEME.NeonViolet, Transparency = 0.12 })
+                tween(filterStroke, 0.12, { Color = THEME.Neon, Transparency = 0.18 })
             end
         end
     end)
+
     button.MouseLeave:Connect(function()
         if currentFilter ~= name then
             tween(button, 0.12, { BackgroundColor3 = THEME.Element })
@@ -445,13 +340,12 @@ for name, button in pairs(filterButtons) do
     end)
 end
 
--- Scale-only entrance. No group fade, so text never renders nearly black.
-local openingScale = create("UIScale", { Scale = 0.985, Parent = main })
-tween(openingScale, 0.22, { Scale = 1 }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local openingScale = create("UIScale", { Scale = 0.99, Parent = main })
+tween(openingScale, 0.18, { Scale = 1 }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
 refresh()
 updateCardSelection()]=],
-"crisp neon polish"
+"clean neon polish"
 )
 
 local chunk, compileError = loadstring(source)
