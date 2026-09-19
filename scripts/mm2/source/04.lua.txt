@@ -1,0 +1,329 @@
+        0.82
+
+
+    highlight.OutlineTransparency =
+        0.1
+
+
+    highlight.Parent =
+        character
+
+
+    local billboard =
+        Instance.new(
+            "BillboardGui"
+        )
+
+
+    billboard.Name =
+        "__SaltyRoleLabel"
+
+
+    billboard.Adornee =
+        head
+
+
+    billboard.Size =
+        UDim2.fromOffset(
+            190,
+            45
+        )
+
+
+    billboard.StudsOffset =
+        Vector3.new(
+            0,
+            3,
+            0
+        )
+
+
+    billboard.AlwaysOnTop =
+        true
+
+
+    billboard.MaxDistance =
+        350
+
+
+    billboard.Parent =
+        head
+
+
+    local label =
+        Instance.new(
+            "TextLabel"
+        )
+
+
+    label.BackgroundTransparency =
+        1
+
+
+    label.Size =
+        UDim2.fromScale(
+            1,
+            1
+        )
+
+
+    label.Font =
+        Enum.Font.GothamBold
+
+
+    label.TextSize =
+        13
+
+
+    label.TextStrokeTransparency =
+        0.4
+
+
+    label.Parent =
+        billboard
+
+
+    local info = {
+
+        Character =
+            character,
+
+        Highlight =
+            highlight,
+
+        Billboard =
+            billboard,
+
+        Label =
+            label,
+    }
+
+
+    Runtime.PlayerESP[
+        player
+    ] =
+        info
+
+
+    return info
+end
+
+
+local function UpdatePlayerESP()
+
+    if not Settings.RoleESP
+        and not Settings.RoleLabels
+    then
+
+        ClearPlayerESP()
+
+        return
+    end
+
+
+    for _,
+        player
+    in ipairs(
+        Players:
+        GetPlayers()
+    )
+    do
+
+        if player ~= LocalPlayer then
+
+            local role =
+                GetRole(player)
+
+
+            local alive =
+                IsAlive(player)
+
+
+            local show =
+                role ~= "Unknown"
+
+
+            if role == "Innocent"
+                and not Settings.ShowInnocents
+            then
+
+                show = false
+            end
+
+
+            if not alive
+                and not Settings.ShowDead
+            then
+
+                show = false
+            end
+
+
+            if not show then
+
+                DestroyPlayerESP(
+                    player
+                )
+
+            else
+
+                local esp =
+                    CreatePlayerESP(
+                        player
+                    )
+
+
+                if esp then
+
+                    local color =
+                        alive
+                        and (
+                            RoleColors[role]
+                            or RoleColors.Unknown
+                        )
+                        or RoleColors.Dead
+
+
+                    esp.Highlight.Enabled =
+                        Settings.RoleESP
+
+
+                    esp.Highlight.FillColor =
+                        color
+
+
+                    esp.Highlight.OutlineColor =
+                        color
+
+
+                    esp.Billboard.Enabled =
+                        Settings.RoleLabels
+
+
+                    if Settings.RoleLabels then
+
+                        local distance =
+                            DistanceTo(
+                                player
+                            )
+
+
+                        esp.Label.TextColor3 =
+                            color
+
+
+                        esp.Label.Text =
+                            player.DisplayName
+                            .. " • "
+                            .. role
+                            .. (
+                                alive
+                                and ""
+                                or " • DEAD"
+                            )
+                            .. "\n"
+                            .. (
+                                distance < math.huge
+                                and (
+                                    tostring(
+                                        math.floor(
+                                            distance
+                                        )
+                                    )
+                                    .. " studs"
+                                )
+                                or "?"
+                            )
+                    end
+                end
+            end
+        end
+    end
+end
+
+
+--==============================================================
+-- ROLE LOOP
+--==============================================================
+
+task.spawn(function()
+
+    while Runtime.Running do
+
+        UpdateRoleCache()
+
+
+        if Settings.RoleESP
+            or Settings.RoleLabels
+        then
+
+            UpdatePlayerESP()
+        end
+
+
+        task.wait(
+            Settings.ESPInterval
+        )
+    end
+end)
+
+
+--==============================================================
+-- MURDERER WARNING
+--==============================================================
+
+task.spawn(function()
+
+    while Runtime.Running do
+
+        if Settings.MurdererWarning
+            and CharacterAlive()
+        then
+
+            local murderer =
+                Runtime.Murderer
+
+
+            if murderer
+                and murderer ~= LocalPlayer
+            then
+
+                local distance =
+                    DistanceTo(
+                        murderer
+                    )
+
+
+                local danger =
+                    distance
+                    <= Settings.WarningDistance
+
+
+                if danger
+                    and not Runtime.DangerInside
+                    and os.clock()
+                        - Runtime.LastDangerNotify
+                        > 1
+                then
+
+                    Runtime.LastDangerNotify =
+                        os.clock()
+
+
+                    Notify(
+                        "MURDERER NEAR",
+
+                        murderer.DisplayName
+                        .. " • "
+                        .. tostring(
+                            math.floor(
+                                distance
+                            )
+                        )
+                        .. " studs",
+
+                        "triangle-alert"
+                    )
+                end
+
+
