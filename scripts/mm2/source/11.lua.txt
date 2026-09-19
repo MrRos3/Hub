@@ -1,0 +1,426 @@
+            Destroy()
+        end)
+    end
+
+
+    Runtime.FlyVelocity =
+        nil
+
+
+    Runtime.FlyGyro =
+        nil
+
+
+    local _,
+        humanoid =
+        GetCharacter()
+
+
+    if humanoid then
+
+        humanoid.AutoRotate =
+            true
+    end
+end
+
+
+local function SetupFly()
+
+    local _,
+        humanoid,
+        root =
+        GetCharacter()
+
+
+    if not humanoid
+        or not root
+    then
+
+        return false
+    end
+
+
+    if Runtime.FlyVelocity
+        and Runtime.FlyVelocity.Parent
+            == root
+    then
+
+        return true
+    end
+
+
+    DestroyFly()
+
+
+    local velocity =
+        Instance.new(
+            "BodyVelocity"
+        )
+
+
+    velocity.MaxForce =
+        Vector3.new(
+            math.huge,
+            math.huge,
+            math.huge
+        )
+
+
+    velocity.P =
+        8000
+
+
+    velocity.Velocity =
+        Vector3.zero
+
+
+    velocity.Parent =
+        root
+
+
+    Runtime.FlyVelocity =
+        velocity
+
+
+    local gyro =
+        Instance.new(
+            "BodyGyro"
+        )
+
+
+    gyro.MaxTorque =
+        Vector3.new(
+            math.huge,
+            math.huge,
+            math.huge
+        )
+
+
+    gyro.P =
+        8000
+
+
+    gyro.D =
+        300
+
+
+    gyro.CFrame =
+        root.CFrame
+
+
+    gyro.Parent =
+        root
+
+
+    Runtime.FlyGyro =
+        gyro
+
+
+    humanoid.AutoRotate =
+        false
+
+
+    return true
+end
+
+
+local function SetFly(
+    enabled
+)
+
+    Settings.Fly =
+        enabled
+
+
+    if enabled then
+
+        SetupFly()
+
+    else
+
+        DestroyFly()
+    end
+end
+
+
+Runtime:
+AddConnection(
+
+    RunService.RenderStepped:
+    Connect(function()
+
+        if not Settings.Fly
+            or Runtime.Action
+        then
+
+            return
+        end
+
+
+        if not SetupFly() then
+            return
+        end
+
+
+        local _,
+            _,
+            root =
+            GetCharacter()
+
+
+        if not root then
+            return
+        end
+
+
+        local camera =
+            Workspace.CurrentCamera
+
+
+        local look =
+            camera.CFrame.LookVector
+
+
+        local right =
+            camera.CFrame.RightVector
+
+
+        local forward =
+            Vector3.new(
+                look.X,
+                0,
+                look.Z
+            )
+
+
+        local side =
+            Vector3.new(
+                right.X,
+                0,
+                right.Z
+            )
+
+
+        if forward.Magnitude > 0 then
+            forward = forward.Unit
+        end
+
+
+        if side.Magnitude > 0 then
+            side = side.Unit
+        end
+
+
+        local direction =
+            Vector3.zero
+
+
+        if UserInputService:
+            IsKeyDown(
+                Enum.KeyCode.W
+            )
+        then
+            direction += forward
+        end
+
+
+        if UserInputService:
+            IsKeyDown(
+                Enum.KeyCode.S
+            )
+        then
+            direction -= forward
+        end
+
+
+        if UserInputService:
+            IsKeyDown(
+                Enum.KeyCode.A
+            )
+        then
+            direction -= side
+        end
+
+
+        if UserInputService:
+            IsKeyDown(
+                Enum.KeyCode.D
+            )
+        then
+            direction += side
+        end
+
+
+        if UserInputService:
+            IsKeyDown(
+                Enum.KeyCode.Space
+            )
+        then
+            direction += Vector3.yAxis
+        end
+
+
+        if UserInputService:
+            IsKeyDown(
+                Enum.KeyCode.LeftControl
+            )
+            or UserInputService:
+                IsKeyDown(
+                    Enum.KeyCode.C
+                )
+        then
+
+            direction -=
+                Vector3.yAxis
+        end
+
+
+        if direction.Magnitude > 1 then
+
+            direction =
+                direction.Unit
+        end
+
+
+        Runtime.FlyVelocity.Velocity =
+            direction
+            * Settings.FlySpeed
+
+
+        if forward.Magnitude > 0 then
+
+            Runtime.FlyGyro.CFrame =
+                CFrame.lookAt(
+
+                    root.Position,
+
+                    root.Position
+                    + forward
+                )
+        end
+    end)
+)
+
+
+Runtime:
+AddConnection(
+
+    UserInputService.InputBegan:
+    Connect(function(
+        input,
+        processed
+    )
+
+        if processed then
+            return
+        end
+
+
+        if input.KeyCode
+            == Enum.KeyCode.F
+        then
+
+            local enabled =
+                not Settings.Fly
+
+
+            if Runtime.FlyToggle
+                and Runtime.FlyToggle.Set
+            then
+
+                Runtime.FlyToggle:
+                Set(
+                    enabled
+                )
+
+            else
+
+                SetFly(
+                    enabled
+                )
+            end
+        end
+    end)
+)
+
+
+--==============================================================
+-- ANTI AFK
+--==============================================================
+
+Runtime:
+AddConnection(
+
+    LocalPlayer.Idled:
+    Connect(function()
+
+        if not Settings.AntiAFK then
+            return
+        end
+
+
+        pcall(function()
+
+            VirtualUser:
+            CaptureController()
+
+
+            VirtualUser:
+            ClickButton2(
+                Vector2.zero
+            )
+
+        end)
+    end)
+)
+
+
+--==============================================================
+-- ROUND EVENTS
+--==============================================================
+
+Runtime:
+AddConnection(
+
+    RoundStart.OnClientEvent:
+    Connect(function()
+
+        Runtime.CoinBagFull =
+            false
+
+
+        Runtime.DangerInside =
+            false
+
+
+        table.clear(
+            Runtime.VisitedCoins
+        )
+
+
+        task.delay(
+            0.25,
+            function()
+
+                RefreshRoundData()
+
+                UpdateRoleCache()
+
+            end
+        )
+    end)
+)
+
+
+Runtime:
+AddConnection(
+
+    VictoryScreen.OnClientEvent:
+    Connect(function()
+
+        Runtime.RoundActive =
+            false
+
+
+        Runtime.Action =
+            nil
