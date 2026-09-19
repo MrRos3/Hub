@@ -1,0 +1,410 @@
+    ------------------------------------------------------------
+    -- Build a small nearest-coins list.
+    ------------------------------------------------------------
+
+    local list = {}
+
+
+    for coin
+    in pairs(
+        Runtime.Coins
+    )
+    do
+
+        if not CoinUnavailable(
+            coin
+        )
+    then
+
+            list[
+                #list + 1
+            ] = {
+
+                Coin =
+                    coin,
+
+                Distance =
+                    (
+                        root.Position
+                        - coin.Position
+                    ).Magnitude,
+            }
+        end
+    end
+
+
+    table.sort(
+        list,
+        function(a, b)
+
+            return a.Distance
+                < b.Distance
+        end
+    )
+
+
+    local keep = {}
+
+
+    local maximum =
+        math.min(
+            Settings.MaxCoinESP,
+            #list
+        )
+
+
+    for index = 1,
+        maximum
+    do
+
+        local coin =
+            list[index].Coin
+
+
+        keep[coin] =
+            true
+
+
+        MakeCoinESP(
+            coin
+        )
+    end
+
+
+    for coin,
+        gui
+    in pairs(
+        Runtime.CoinESPObjects
+    )
+    do
+
+        if not keep[coin] then
+
+            gui:Destroy()
+
+
+            Runtime.CoinESPObjects[
+                coin
+            ] =
+                nil
+        end
+    end
+end
+
+
+task.spawn(function()
+
+    while Runtime.Running do
+
+        if Settings.CoinESP then
+
+            UpdateCoinESP()
+        end
+
+
+        task.wait(
+            Settings.CoinESPInterval
+        )
+    end
+end)
+
+
+--==============================================================
+-- SPECTATE
+--==============================================================
+
+local function ToggleSpectate()
+
+    if not SpectateService
+        or type(
+            SpectateService.ToggleSpectate
+        ) ~= "function"
+    then
+
+        Notify(
+            "Spectate",
+            "Unavailable.",
+            "circle-alert"
+        )
+
+        return
+    end
+
+
+    pcall(function()
+
+        SpectateService:
+        ToggleSpectate()
+
+    end)
+end
+
+
+local function NavigateSpectate(
+    direction
+)
+
+    if not SpectateService
+        or type(
+            SpectateService.NavigateSpectate
+        ) ~= "function"
+    then
+
+        return
+    end
+
+
+    pcall(function()
+
+        SpectateService:
+        NavigateSpectate(
+            direction
+        )
+
+    end)
+end
+
+
+local function CancelSpectate()
+
+    if SpectateService
+        and type(
+            SpectateService.CancelSpectate
+        ) == "function"
+    then
+
+        pcall(function()
+
+            SpectateService:
+            CancelSpectate()
+
+        end)
+    end
+
+
+    local _,
+        humanoid =
+        GetCharacter()
+
+
+    if humanoid then
+
+        Camera.CameraSubject =
+            humanoid
+    end
+end
+
+
+local function SpectatePlayer(
+    player
+)
+
+    local character =
+        player
+        and player.Character
+
+
+    local humanoid =
+        character
+        and character:
+            FindFirstChildOfClass(
+                "Humanoid"
+            )
+
+
+    if not humanoid then
+        return false
+    end
+
+
+    Camera.CameraSubject =
+        humanoid
+
+
+    return true
+end
+
+
+--==============================================================
+-- SPEED
+--==============================================================
+
+local function ApplySpeed()
+
+    local _,
+        humanoid =
+        GetCharacter()
+
+
+    if not humanoid then
+        return
+    end
+
+
+    if Settings.SpeedEnabled then
+
+        humanoid.WalkSpeed =
+            Settings.Speed
+    end
+end
+
+
+task.spawn(function()
+
+    while Runtime.Running do
+
+        if Settings.SpeedEnabled
+            and not Runtime.Action
+        then
+
+            ApplySpeed()
+        end
+
+
+        task.wait(
+            0.35
+        )
+    end
+end)
+
+
+--==============================================================
+-- INFINITE JUMP
+--==============================================================
+
+Runtime:
+AddConnection(
+
+    UserInputService.JumpRequest:
+    Connect(function()
+
+        if not Settings.InfiniteJump then
+            return
+        end
+
+
+        local _,
+            humanoid =
+            GetCharacter()
+
+
+        if humanoid then
+
+            humanoid:
+            ChangeState(
+                Enum.HumanoidStateType
+                    .Jumping
+            )
+        end
+    end)
+)
+
+
+--==============================================================
+-- NOCLIP
+--==============================================================
+
+local function ApplyNoclip()
+
+    local character =
+        LocalPlayer.Character
+
+
+    if not character then
+        return
+    end
+
+
+    for _,
+        part
+    in ipairs(
+        character:
+        GetDescendants()
+    )
+    do
+
+        if part:IsA(
+            "BasePart"
+        )
+    then
+
+            if Runtime.NoclipOriginal[
+                part
+            ] == nil
+            then
+
+                Runtime.NoclipOriginal[
+                    part
+                ] =
+                    part.CanCollide
+            end
+
+
+            part.CanCollide =
+                false
+        end
+    end
+end
+
+
+local function RestoreNoclip()
+
+    for part,
+        value
+    in pairs(
+        Runtime.NoclipOriginal
+    )
+    do
+
+        if part
+            and part.Parent
+        then
+
+            part.CanCollide =
+                value
+        end
+    end
+
+
+    table.clear(
+        Runtime.NoclipOriginal
+    )
+end
+
+
+task.spawn(function()
+
+    while Runtime.Running do
+
+        if Settings.Noclip then
+
+            ApplyNoclip()
+        end
+
+
+        task.wait(
+            0.45
+        )
+    end
+end)
+
+
+--==============================================================
+-- FLY
+--==============================================================
+
+local function DestroyFly()
+
+    if Runtime.FlyVelocity then
+
+        pcall(function()
+            Runtime.FlyVelocity:
+            Destroy()
+        end)
+    end
+
+
+    if Runtime.FlyGyro then
+
+        pcall(function()
+            Runtime.FlyGyro:
