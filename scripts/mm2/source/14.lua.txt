@@ -1,0 +1,465 @@
+            Settings.WarningDistance =
+                40
+        end,
+})
+
+
+--==============================================================
+-- SHERIFF
+--==============================================================
+
+SheriffTab:
+Toggle({
+
+    Title =
+        "Auto Equip Gun",
+
+    Icon =
+        "mouse-pointer-click",
+
+    Value =
+        true,
+
+    Callback =
+        function(value)
+
+            Settings.AutoEquipGun =
+                value
+        end,
+})
+
+
+SheriffTab:
+Toggle({
+
+    Title =
+        "Auto Shoot Murderer",
+
+    Icon =
+        "crosshair",
+
+    Value =
+        false,
+
+    Callback =
+        function(value)
+
+            Settings.AutoShootMurderer =
+                value
+
+            Runtime.LastShot =
+                0
+        end,
+})
+
+
+SheriffTab:
+Toggle({
+
+    Title =
+        "Require Line Of Sight",
+
+    Icon =
+        "eye",
+
+    Value =
+        true,
+
+    Callback =
+        function(value)
+
+            Settings.RequireLineOfSight =
+                value
+        end,
+})
+
+
+SheriffTab:
+Toggle({
+
+    Title =
+        "Camera Aim",
+
+    Desc =
+        "Only enable when needed; it updates every rendered frame.",
+
+    Icon =
+        "focus",
+
+    Value =
+        false,
+
+    Callback =
+        function(value)
+
+            Settings.AimCamera =
+                value
+        end,
+})
+
+
+SheriffTab:
+Button({
+
+    Title =
+        "Shoot Murderer NOW",
+
+    Icon =
+        "crosshair",
+
+    Callback =
+        function()
+
+            ShootMurderer(
+                true
+            )
+        end,
+})
+
+
+SheriffTab:
+Button({
+
+    Title =
+        "Equip Gun NOW",
+
+    Icon =
+        "mouse-pointer-click",
+
+    Callback =
+        function()
+
+            EquipWeapon(
+                "Gun"
+            )
+        end,
+})
+
+
+SheriffTab:
+Button({
+
+    Title =
+        "Shot Pace • SAFE",
+
+    Callback =
+        function()
+
+            Settings.ShootInterval =
+                1.15
+        end,
+})
+
+
+SheriffTab:
+Button({
+
+    Title =
+        "Shot Pace • NORMAL",
+
+    Callback =
+        function()
+
+            Settings.ShootInterval =
+                0.80
+        end,
+})
+
+
+SheriffTab:
+Button({
+
+    Title =
+        "Shot Pace • FAST",
+
+    Callback =
+        function()
+
+            Settings.ShootInterval =
+                0.55
+        end,
+})
+
+
+--==============================================================
+-- DROPPED GUN
+--==============================================================
+
+GunTab:
+Toggle({
+
+    Title =
+        "Dropped Gun ESP",
+
+    Icon =
+        "eye",
+
+    Value =
+        true,
+
+    Callback =
+        function(value)
+
+            Settings.DroppedGunESP =
+                value
+
+
+            if not value then
+
+                ClearGunESP()
+            end
+        end,
+})
+
+
+GunTab:
+Toggle({
+
+    Title =
+        "Auto Pickup Gun",
+
+    Icon =
+        "navigation",
+
+    Value =
+        false,
+
+    Callback =
+        function(value)
+
+            Settings.AutoGunPickup =
+                value
+
+
+            Runtime.NextGunPickup =
+                0
+        end,
+})
+
+
+GunTab:
+Button({
+
+    Title =
+        "Pick Up Gun NOW",
+
+    Icon =
+        "navigation",
+
+    Callback =
+        function()
+
+            task.spawn(function()
+
+                PickupGun(
+                    true
+                )
+
+            end)
+        end,
+})
+
+
+GunTab:
+Button({
+
+    Title =
+        "Refresh Gun Cache",
+
+    Desc =
+        "Runs one fallback map scan.",
+
+    Icon =
+        "refresh-cw",
+
+    Callback =
+        function()
+
+            Runtime.LastGunFallbackScan =
+                0
+
+
+            FallbackGunScan()
+
+
+            local gun,
+                _,
+                score =
+                FindDroppedGun(
+                    false
+                )
+
+
+            Notify(
+                "Gun Cache",
+
+                gun
+                    and (
+                        gun.Name
+                        .. " • "
+                        .. tostring(score)
+                    )
+                    or "No dropped gun.",
+
+                "refresh-cw"
+            )
+        end,
+})
+
+
+--==============================================================
+-- COINS
+--==============================================================
+
+CoinsTab:
+Toggle({
+
+    Title =
+        "Auto Coin Farm",
+
+    Icon =
+        "coins",
+
+    Value =
+        false,
+
+    Callback =
+        function(value)
+
+            Settings.AutoCoinFarm =
+                value
+
+
+            if value then
+
+                table.clear(
+                    Runtime.VisitedCoins
+                )
+            end
+        end,
+})
+
+
+CoinsTab:
+Toggle({
+
+    Title =
+        "Coin ESP",
+
+    Desc =
+        "Lightweight • nearest coins only.",
+
+    Icon =
+        "eye",
+
+    Value =
+        false,
+
+    Callback =
+        function(value)
+
+            Settings.CoinESP =
+                value
+
+
+            if not value then
+
+                ClearCoinESP()
+            end
+        end,
+})
+
+
+CoinsTab:
+Toggle({
+
+    Title =
+        "Avoid Murderer",
+
+    Icon =
+        "shield",
+
+    Value =
+        true,
+
+    Callback =
+        function(value)
+
+            Settings.AvoidMurdererCoins =
+                value
+        end,
+})
+
+
+CoinsTab:
+Button({
+
+    Title =
+        "Collect Nearest Coin",
+
+    Icon =
+        "navigation",
+
+    Callback =
+        function()
+
+            task.spawn(function()
+
+                CollectNearestCoin(
+                    true
+                )
+
+            end)
+        end,
+})
+
+
+CoinsTab:
+Button({
+
+    Title =
+        "Coin Route • SAFE",
+
+    Callback =
+        function()
+
+            Settings.CoinMoveDelay =
+                0.20
+        end,
+})
+
+
+CoinsTab:
+Button({
+
+    Title =
+        "Coin Route • NORMAL",
+
+    Callback =
+        function()
+
+            Settings.CoinMoveDelay =
+                0.11
+        end,
+})
+
+
+CoinsTab:
+Button({
+
+    Title =
+        "Coin Route • FAST",
+
+    Callback =
+        function()
+
+            Settings.CoinMoveDelay =
+                0.065
+        end,
+})
+
+
+CoinsTab:
+Button({
+
+    Title =
