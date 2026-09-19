@@ -1,212 +1,44 @@
--- Velora Hub bootstrap v10
--- Clean neon edition: persistent favorites, no decorative rails, no glow blobs.
+-- Velora Hub bootstrap v11
+-- Premium card edition. Builds on the stable clean-neon v10 base.
 
-local CORE_URL = "https://raw.githubusercontent.com/MrRos3/Hub/main/HubCore.lua"
+local BASE_URL = "https://raw.githubusercontent.com/MrRos3/Hub/d1dbc49d32489c9b8b837c960654d46dee8ca4be/Hub.lua"
 local cache = tostring(os.time()) .. "-" .. tostring(math.random(100000, 999999))
 
-local ok, source = pcall(function()
-    return game:HttpGet(CORE_URL .. "?v=" .. cache)
+local ok, bootstrap = pcall(function()
+    return game:HttpGet(BASE_URL .. "?v=" .. cache)
 end)
 
-if not ok or type(source) ~= "string" or source == "" then
-    error("[Velora Hub] Failed to download HubCore.lua", 0)
+if not ok or type(bootstrap) ~= "string" or bootstrap == "" then
+    error("[Velora Hub] Failed to download stable v10 base.", 0)
 end
 
-local function replaceExact(needle, replacement, label)
-    local startAt, endAt = string.find(source, needle, 1, true)
-    if not startAt then
-        error("[Velora Hub] Patch failed: " .. tostring(label or needle), 0)
-    end
-    source = source:sub(1, startAt - 1) .. replacement .. source:sub(endAt + 1)
-end
-
--- Inject additional real scripts.
-local marker = "\n}\n\nlocal function getGuiParent()"
-local insertAt = string.find(source, marker, 1, true)
+local compileMarker = "\nlocal chunk, compileError = loadstring(source)"
+local insertAt = string.find(bootstrap, compileMarker, 1, true)
 if not insertAt then
-    error("[Velora Hub] Could not locate script library in HubCore.lua", 0)
+    error("[Velora Hub] Could not locate v10 compile stage.", 0)
 end
 
-local extraEntries = [=[
-    {
-        Id = "alzzmys-dances",
-        Name = "Alzzmy's DANCES",
-        Description = "Salty VantaUI AutoPlayer • Internal tryHit Edition",
-        Tags = { "dances", "autoplayer", "music", "tryhit", "performance" },
-        Url = "https://raw.githubusercontent.com/MrRos3/Hub/main/scripts/Dances.lua",
-    },
-]=]
+local premiumPass = [=[
 
-source = source:sub(1, insertAt - 1) .. "\n" .. extraEntries .. source:sub(insertAt)
+--==============================================================
+-- V11 PREMIUM CARD PASS
+--==============================================================
 
--- Clean black / purple neon palette.
-replaceExact(
-[=[local THEME = {
-    Background = Color3.fromHex("#000000"),
-    Panel = Color3.fromHex("#050406"),
-    Dialog = Color3.fromHex("#0A0709"),
-    Element = Color3.fromHex("#151116"),
-    ElementHover = Color3.fromHex("#1D161B"),
-    Button = Color3.fromHex("#251016"),
-    Accent = Color3.fromHex("#A1162F"),
-    AccentBright = Color3.fromHex("#D23A57"),
-    Outline = Color3.fromHex("#5A1824"),
-    Text = Color3.fromHex("#FFFFFF"),
-    Muted = Color3.fromHex("#9A9AA3"),
-    Faint = Color3.fromHex("#68636B"),
-}]=],
-[=[local THEME = {
-    Background = Color3.fromHex("#020203"),
-    Panel = Color3.fromHex("#070708"),
-    Dialog = Color3.fromHex("#0C0A0F"),
-    Element = Color3.fromHex("#141119"),
-    ElementHover = Color3.fromHex("#1A1621"),
-    Button = Color3.fromHex("#1C1426"),
-    Accent = Color3.fromHex("#8B63D9"),
-    AccentBright = Color3.fromHex("#C08AFF"),
-    Outline = Color3.fromHex("#49365F"),
-    Text = Color3.fromHex("#FFFFFF"),
-    Muted = Color3.fromHex("#B8AFBF"),
-    Faint = Color3.fromHex("#756C7D"),
-    Neon = Color3.fromHex("#A778FF"),
-    NeonSoft = Color3.fromHex("#7650B5"),
-    Pink = Color3.fromHex("#FF68B0"),
-}]=],
-"theme"
-)
+-- Give the new cards a little more breathing room.
+replaceExact("CellSize = UDim2.fromOffset(360, 118),", "CellSize = UDim2.fromOffset(360, 132),", "premium initial card height")
+replaceExact("gridLayout.CellSize = UDim2.fromOffset(cellWidth, 118)", "gridLayout.CellSize = UDim2.fromOffset(cellWidth, 132)", "premium responsive card height")
 
--- Tighter window and softer backdrop.
-replaceExact("BackgroundTransparency = 0.66,", "BackgroundTransparency = 0.52,", "backdrop")
-replaceExact("Size = UDim2.fromScale(0.74, 0.72),", "Size = UDim2.fromScale(0.68, 0.56),", "window size")
-replaceExact("MinSize = Vector2.new(860, 530),", "MinSize = Vector2.new(820, 460),", "minimum size")
-replaceExact("MaxSize = Vector2.new(1220, 760),", "MaxSize = Vector2.new(1080, 620),", "maximum size")
-replaceExact("tween(blur, 0.2, { Size = 9 })", "tween(blur, 0.2, { Size = 6 })", "blur strength")
-replaceExact("tween(blur, 0.16, { Size = value and 9 or 0 })", "tween(blur, 0.16, { Size = value and 6 or 0 })", "toggle blur")
+local polishStart = string.find(source, "--==============================================================\n-- CLEAN NEON POLISH", 1, true)
+local polishTail = "refresh()\nupdateCardSelection()"
+local polishEnd = polishStart and string.find(source, polishTail, polishStart, true)
 
--- Keep small libraries balanced as 2x2.
-replaceExact(
-[=[    local columns
-    if width >= 1060 then
-        columns = 3
-    elseif width >= 760 then
-        columns = 2
-    else
-        columns = 1
-    end]=],
-[=[    local columns
-    if #SCRIPTS <= 6 and width >= 720 then
-        columns = 2
-    elseif width >= 1060 then
-        columns = 3
-    elseif width >= 720 then
-        columns = 2
-    else
-        columns = 1
-    end]=],
-"responsive columns"
-)
-replaceExact("CellSize = UDim2.fromOffset(360, 104),", "CellSize = UDim2.fromOffset(360, 118),", "initial card height")
-replaceExact("gridLayout.CellSize = UDim2.fromOffset(cellWidth, 104)", "gridLayout.CellSize = UDim2.fromOffset(cellWidth, 118)", "responsive card height")
-
--- Persistent favorites.
-replaceExact(
-[=[local favorites = {}
-local cards = {}]=],
-[=[local HttpService = game:GetService("HttpService")
-local FAVORITES_FILE = "VeloraHub/favorites.json"
-local favorites = {}
-
-local function ensureFavoritesFolder()
-    if type(makefolder) ~= "function" or type(isfolder) ~= "function" then
-        return false
-    end
-    if not isfolder("VeloraHub") then
-        pcall(makefolder, "VeloraHub")
-    end
-    return isfolder("VeloraHub")
+if not polishStart or not polishEnd then
+    error("[Velora Hub] Could not locate clean-neon card polish.", 0)
 end
 
-local function loadFavorites()
-    if type(readfile) ~= "function" or type(isfile) ~= "function" then
-        return
-    end
-    ensureFavoritesFolder()
-    if not isfile(FAVORITES_FILE) then
-        return
-    end
-
-    local success, decoded = pcall(function()
-        return HttpService:JSONDecode(readfile(FAVORITES_FILE))
-    end)
-
-    if success and type(decoded) == "table" then
-        for id, value in pairs(decoded) do
-            if value == true then
-                favorites[tostring(id)] = true
-            end
-        end
-    end
-end
-
-local function saveFavorites()
-    if type(writefile) ~= "function" or not ensureFavoritesFolder() then
-        return false
-    end
-
-    local clean = {}
-    for id, value in pairs(favorites) do
-        if value == true then
-            clean[id] = true
-        end
-    end
-
-    local success, encoded = pcall(function()
-        return HttpService:JSONEncode(clean)
-    end)
-    if not success then
-        return false
-    end
-
-    return pcall(writefile, FAVORITES_FILE, encoded)
-end
-
-loadFavorites()
-
-local cards = {}]=],
-"persistent favorites"
-)
-
-replaceExact(
-[=[    favorite.MouseButton1Click:Connect(function()
-        favorites[entry.Id] = not favorites[entry.Id]
-        favorite.ImageColor3 = favorites[entry.Id] and THEME.AccentBright or THEME.Faint
-        favorite.ImageTransparency = favorites[entry.Id] and 0 or 0.04
-    end)]=],
-[=[    favorite.MouseButton1Click:Connect(function()
-        if favorites[entry.Id] then
-            favorites[entry.Id] = nil
-        else
-            favorites[entry.Id] = true
-        end
-
-        saveFavorites()
-        tween(favorite, 0.12, {
-            ImageColor3 = favorites[entry.Id] and THEME.Pink or THEME.Faint,
-            ImageTransparency = favorites[entry.Id] and 0 or 0.06,
-        })
-    end)]=],
-"favorite save handler"
-)
-
--- Slightly roomier notifications without changing their structure.
-replaceExact("Size = UDim2.fromOffset(350, 86),", "Size = UDim2.fromOffset(366, 92),", "notification size")
-
--- Clean neon polish. No rails, no blobs, no multi-color border streaks.
-replaceExact(
-[=[refresh()
-updateCardSelection()]=],
-[=[--==============================================================
--- CLEAN NEON POLISH
+local premiumPolish = [==[
+--==============================================================
+-- PREMIUM CARD POLISH
 --==============================================================
 
 main.BackgroundColor3 = THEME.Panel
@@ -220,7 +52,6 @@ if mainStroke then
     mainStroke.Thickness = 1
 end
 
--- Keep the topbar clean and slightly separated from the body.
 top.BackgroundColor3 = THEME.Dialog
 top.BackgroundTransparency = 0.03
 
@@ -246,74 +77,223 @@ if searchStroke then
     end)
 end
 
+local function findCardLabels(card)
+    local titleLabel
+    local descLabel
+    local tagsLabel
+
+    for _, child in ipairs(card:GetChildren()) do
+        if child:IsA("TextLabel") then
+            local y = child.Position.Y.Offset
+            if y == 11 then
+                titleLabel = child
+            elseif y == 33 then
+                descLabel = child
+            elseif y == 73 then
+                tagsLabel = child
+            end
+        end
+    end
+
+    return titleLabel, descLabel, tagsLabel
+end
+
 for id, data in pairs(cards) do
     local card = data.Card
     local cardStroke = data.Stroke
     local selectButton = data.Select
     local favorite = favoriteButtons[id]
     local scale = create("UIScale", { Scale = 1, Parent = card })
+    local cardCorner = card:FindFirstChildOfClass("UICorner")
 
-    card.BackgroundColor3 = Color3.fromHex("#15111A")
-    card.BackgroundTransparency = 0.02
-    cardStroke.Color = THEME.NeonSoft
-    cardStroke.Transparency = 0.42
+    if cardCorner then
+        cardCorner.CornerRadius = UDim.new(0, 13)
+    end
+
+    card.BackgroundColor3 = Color3.fromHex("#0F0D13")
+    card.BackgroundTransparency = 0
+    cardStroke.Color = Color3.fromHex("#654984")
+    cardStroke.Transparency = 0.46
     cardStroke.Thickness = 1
 
+    -- Background-only gradient surface. No lines, rails or blobs.
+    local surface = create("Frame", {
+        Name = "PremiumSurface",
+        Position = UDim2.fromOffset(1, 1),
+        Size = UDim2.new(1, -2, 1, -2),
+        BackgroundColor3 = Color3.fromHex("#15111A"),
+        BorderSizePixel = 0,
+        ZIndex = 0,
+        Parent = card,
+    }, {
+        corner(12),
+        create("UIGradient", {
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromHex("#19131F")),
+                ColorSequenceKeypoint.new(0.55, Color3.fromHex("#131018")),
+                ColorSequenceKeypoint.new(1, Color3.fromHex("#0F0E13")),
+            }),
+            Rotation = 12,
+        }),
+    })
+
     local initialBox = card:FindFirstChildWhichIsA("Frame")
-    if initialBox then
-        initialBox.BackgroundColor3 = Color3.fromHex("#211729")
-        initialBox.BackgroundTransparency = 0.02
+    if initialBox and initialBox ~= surface then
+        initialBox.Position = UDim2.fromOffset(14, 15)
+        initialBox.Size = UDim2.fromOffset(52, 52)
+        initialBox.BackgroundColor3 = Color3.fromHex("#21172A")
+        initialBox.BackgroundTransparency = 0
+
+        local initialCorner = initialBox:FindFirstChildOfClass("UICorner")
+        if initialCorner then
+            initialCorner.CornerRadius = UDim.new(0, 12)
+        end
+
         local initialStroke = initialBox:FindFirstChildOfClass("UIStroke")
         if initialStroke then
             initialStroke.Color = THEME.NeonSoft
-            initialStroke.Transparency = 0.34
+            initialStroke.Transparency = 0.24
+            initialStroke.Thickness = 1
         end
+
+        local initialText = initialBox:FindFirstChildWhichIsA("TextLabel")
+        if initialText then
+            initialText.TextSize = 18
+            initialText.TextColor3 = Color3.fromHex("#F7F2FF")
+        end
+
+        create("UIGradient", {
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromHex("#2A1D36")),
+                ColorSequenceKeypoint.new(1, Color3.fromHex("#17101E")),
+            }),
+            Rotation = 35,
+            Parent = initialBox,
+        })
     end
 
-    selectButton.BackgroundColor3 = Color3.fromHex("#1D1624")
-    selectButton.BackgroundTransparency = 0.02
-    local selectStroke = selectButton:FindFirstChildOfClass("UIStroke")
-    if selectStroke then
-        selectStroke.Color = THEME.NeonSoft
-        selectStroke.Transparency = 0.36
+    local titleLabel, descLabel, tagsLabel = findCardLabels(card)
+
+    if titleLabel then
+        titleLabel.Position = UDim2.fromOffset(78, 15)
+        titleLabel.Size = UDim2.new(1, -132, 0, 24)
+        titleLabel.TextSize = 14
+        titleLabel.TextColor3 = Color3.fromHex("#FFFFFF")
+    end
+
+    if descLabel then
+        descLabel.Position = UDim2.fromOffset(78, 40)
+        descLabel.Size = UDim2.new(1, -140, 0, 20)
+        descLabel.TextSize = 9
+        descLabel.TextColor3 = Color3.fromHex("#BDB4C5")
+    end
+
+    if tagsLabel then
+        tagsLabel.Position = UDim2.fromOffset(15, 94)
+        tagsLabel.Size = UDim2.new(1, -132, 0, 20)
+        tagsLabel.TextSize = 8
+        tagsLabel.TextColor3 = Color3.fromHex("#8B8193")
     end
 
     if favorite then
-        favorite.ImageColor3 = favorites[id] and THEME.Pink or THEME.Faint
-        favorite.ImageTransparency = favorites[id] and 0 or 0.06
+        favorite.Position = UDim2.new(1, -12, 0, 11)
+        favorite.Size = UDim2.fromOffset(26, 26)
+        favorite.ImageColor3 = favorites[id] and THEME.Pink or Color3.fromHex("#736B79")
+        favorite.ImageTransparency = favorites[id] and 0 or 0.08
 
         favorite.MouseEnter:Connect(function()
-            tween(favorite, 0.10, { ImageColor3 = THEME.Pink, ImageTransparency = 0 })
+            tween(favorite, 0.10, {
+                ImageColor3 = THEME.Pink,
+                ImageTransparency = 0,
+            })
         end)
 
         favorite.MouseLeave:Connect(function()
             tween(favorite, 0.10, {
-                ImageColor3 = favorites[id] and THEME.Pink or THEME.Faint,
-                ImageTransparency = favorites[id] and 0 or 0.06,
+                ImageColor3 = favorites[id] and THEME.Pink or Color3.fromHex("#736B79"),
+                ImageTransparency = favorites[id] and 0 or 0.08,
             })
         end)
     end
 
-    card.MouseEnter:Connect(function()
-        tween(scale, 0.12, { Scale = 1.009 })
-        tween(card, 0.12, { BackgroundColor3 = Color3.fromHex("#1A1520") })
-        tween(cardStroke, 0.12, { Color = THEME.Neon, Transparency = 0.10 })
+    selectButton.Position = UDim2.new(1, -14, 1, -14)
+    selectButton.Size = UDim2.fromOffset(96, 32)
+    selectButton.BackgroundColor3 = Color3.fromHex("#21172A")
+    selectButton.BackgroundTransparency = 0
+    selectButton.TextSize = 9
+    selectButton.TextColor3 = Color3.fromHex("#EEE8F4")
+
+    local selectCorner = selectButton:FindFirstChildOfClass("UICorner")
+    if selectCorner then
+        selectCorner.CornerRadius = UDim.new(0, 9)
+    end
+
+    local selectStroke = selectButton:FindFirstChildOfClass("UIStroke")
+    if selectStroke then
+        selectStroke.Color = THEME.NeonSoft
+        selectStroke.Transparency = 0.30
+        selectStroke.Thickness = 1
+    end
+
+    selectButton.MouseEnter:Connect(function()
+        tween(selectButton, 0.12, {
+            BackgroundColor3 = Color3.fromHex("#2B1D37"),
+            TextColor3 = Color3.fromHex("#FFFFFF"),
+        })
         if selectStroke then
-            tween(selectStroke, 0.12, { Color = THEME.Neon, Transparency = 0.14 })
+            tween(selectStroke, 0.12, {
+                Color = THEME.Neon,
+                Transparency = 0.08,
+            })
+        end
+    end)
+
+    selectButton.MouseLeave:Connect(function()
+        tween(selectButton, 0.14, {
+            BackgroundColor3 = Color3.fromHex("#21172A"),
+            TextColor3 = Color3.fromHex("#EEE8F4"),
+        })
+        if selectStroke then
+            tween(selectStroke, 0.14, {
+                Color = THEME.NeonSoft,
+                Transparency = 0.30,
+            })
+        end
+    end)
+
+    card.MouseEnter:Connect(function()
+        tween(scale, 0.14, { Scale = 1.006 })
+        tween(cardStroke, 0.14, {
+            Color = THEME.Neon,
+            Transparency = 0.12,
+        })
+
+        if initialBox and initialBox ~= surface then
+            local initialStroke = initialBox:FindFirstChildOfClass("UIStroke")
+            if initialStroke then
+                tween(initialStroke, 0.14, {
+                    Color = THEME.Neon,
+                    Transparency = 0.10,
+                })
+            end
         end
     end)
 
     card.MouseLeave:Connect(function()
-        tween(scale, 0.14, { Scale = 1 })
-        tween(card, 0.14, {
-            BackgroundColor3 = selectedId == id and THEME.Button or Color3.fromHex("#15111A")
+        tween(scale, 0.16, { Scale = 1 })
+        tween(cardStroke, 0.16, {
+            Color = selectedId == id and THEME.AccentBright or Color3.fromHex("#654984"),
+            Transparency = selectedId == id and 0.14 or 0.46,
         })
-        tween(cardStroke, 0.14, {
-            Color = selectedId == id and THEME.AccentBright or THEME.NeonSoft,
-            Transparency = selectedId == id and 0.16 or 0.42,
-        })
-        if selectStroke then
-            tween(selectStroke, 0.14, { Color = THEME.NeonSoft, Transparency = 0.36 })
+
+        if initialBox and initialBox ~= surface then
+            local initialStroke = initialBox:FindFirstChildOfClass("UIStroke")
+            if initialStroke then
+                tween(initialStroke, 0.16, {
+                    Color = THEME.NeonSoft,
+                    Transparency = 0.24,
+                })
+            end
         end
     end)
 end
@@ -340,17 +320,25 @@ for name, button in pairs(filterButtons) do
     end)
 end
 
-local openingScale = create("UIScale", { Scale = 0.99, Parent = main })
+local openingScale = create("UIScale", { Scale = 0.992, Parent = main })
 tween(openingScale, 0.18, { Scale = 1 }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
 refresh()
-updateCardSelection()]=],
-"clean neon polish"
-)
+updateCardSelection()
+]==]
 
-local chunk, compileError = loadstring(source)
+source = source:sub(1, polishStart - 1)
+    .. premiumPolish
+    .. source:sub(polishEnd + #polishTail)
+]=]
+
+bootstrap = bootstrap:sub(1, insertAt - 1)
+    .. premiumPass
+    .. bootstrap:sub(insertAt)
+
+local chunk, compileError = loadstring(bootstrap)
 if not chunk then
-    error("[Velora Hub] Failed to compile patched HubCore: " .. tostring(compileError), 0)
+    error("[Velora Hub] Failed to compile v11 bootstrap: " .. tostring(compileError), 0)
 end
 
 return chunk()
