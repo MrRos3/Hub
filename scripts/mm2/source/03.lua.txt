@@ -1,0 +1,445 @@
+    if not player then
+        return nil
+    end
+
+
+    return GetRoundData()[
+        player.Name
+    ]
+end
+
+
+local function GetRole(
+    player
+)
+
+    local data =
+        PlayerData(player)
+
+
+    if not data then
+        return "Unknown"
+    end
+
+
+    return tostring(
+        data.Role
+        or "Unknown"
+    )
+end
+
+
+local function IsAlive(
+    player
+)
+
+    local data =
+        PlayerData(player)
+
+
+    if data
+        and data.Dead == true
+    then
+
+        return false
+    end
+
+
+    local character =
+        player
+        and player.Character
+
+
+    local humanoid =
+        character
+        and character:
+            FindFirstChildOfClass(
+                "Humanoid"
+            )
+
+
+    if humanoid then
+        return humanoid.Health > 0
+    end
+
+
+    return data
+        and data.Dead == false
+        or false
+end
+
+
+--==============================================================
+-- ROLE CACHE
+--==============================================================
+
+local function UpdateRoleCache()
+
+    local murderer = nil
+
+    local sheriff = nil
+
+    local hero = nil
+
+
+    local data =
+        GetRoundData()
+
+
+    for name,
+        info
+    in pairs(data)
+    do
+
+        local player =
+            Players:
+            FindFirstChild(name)
+
+
+        if player
+            and info.Dead ~= true
+        then
+
+            if info.Role == "Murderer" then
+
+                murderer = player
+
+            elseif info.Role == "Sheriff" then
+
+                sheriff = player
+
+            elseif info.Role == "Hero" then
+
+                hero = player
+            end
+        end
+    end
+
+
+    Runtime.Murderer =
+        murderer
+
+    Runtime.Sheriff =
+        sheriff
+
+    Runtime.Hero =
+        hero
+
+    Runtime.LocalRole =
+        GetRole(
+            LocalPlayer
+        )
+
+    Runtime.RoundActive =
+        next(data) ~= nil
+
+    Runtime.LastRoleRefresh =
+        os.clock()
+end
+
+
+local function GetMurderer()
+    return Runtime.Murderer
+end
+
+
+local function GetSheriff()
+    return Runtime.Sheriff
+end
+
+
+local function GetHero()
+    return Runtime.Hero
+end
+
+
+local function GetSheriffOrHero()
+
+    return Runtime.Hero
+        or Runtime.Sheriff
+end
+
+
+--==============================================================
+-- CHARACTER TARGET
+--==============================================================
+
+local function TargetPart(
+    player
+)
+
+    local character =
+        player
+        and player.Character
+
+
+    if not character then
+        return nil
+    end
+
+
+    return character:
+        FindFirstChild(
+            "HumanoidRootPart"
+        )
+
+        or character:
+            FindFirstChild(
+                "UpperTorso"
+            )
+
+        or character:
+            FindFirstChild(
+                "Torso"
+            )
+
+        or character:
+            FindFirstChild(
+                "Head"
+            )
+end
+
+
+local function DistanceTo(
+    player
+)
+
+    local _,
+        _,
+        root =
+        GetCharacter()
+
+
+    local target =
+        TargetPart(player)
+
+
+    if not root
+        or not target
+    then
+
+        return math.huge
+    end
+
+
+    return (
+        root.Position
+        - target.Position
+    ).Magnitude
+end
+
+
+--==============================================================
+-- MAP
+--==============================================================
+
+local function GetCurrentMap()
+
+    local tagged =
+        CollectionService:
+        GetTagged(
+            "CurrentMap"
+        )
+
+
+    for _,
+        object
+    in ipairs(tagged)
+    do
+
+        if object:IsDescendantOf(
+            Workspace
+        )
+        then
+
+            return object
+        end
+    end
+
+
+    return nil
+end
+
+
+--==============================================================
+-- ROLE ESP
+--==============================================================
+
+local RoleColors = {
+
+    Murderer =
+        Color3.fromRGB(
+            255,
+            70,
+            78
+        ),
+
+    Sheriff =
+        Color3.fromRGB(
+            70,
+            145,
+            255
+        ),
+
+    Hero =
+        Color3.fromRGB(
+            60,
+            230,
+            255
+        ),
+
+    Innocent =
+        Color3.fromRGB(
+            100,
+            255,
+            140
+        ),
+
+    Unknown =
+        Color3.fromRGB(
+            230,
+            230,
+            230
+        ),
+
+    Dead =
+        Color3.fromRGB(
+            120,
+            120,
+            120
+        ),
+}
+
+
+local function DestroyPlayerESP(
+    player
+)
+
+    local esp =
+        Runtime.PlayerESP[
+            player
+        ]
+
+
+    if not esp then
+        return
+    end
+
+
+    pcall(function()
+
+        if esp.Highlight then
+            esp.Highlight:Destroy()
+        end
+
+
+        if esp.Billboard then
+            esp.Billboard:Destroy()
+        end
+    end)
+
+
+    Runtime.PlayerESP[
+        player
+    ] =
+        nil
+end
+
+
+local function ClearPlayerESP()
+
+    local copy = {}
+
+    for player
+    in pairs(
+        Runtime.PlayerESP
+    )
+    do
+
+        copy[#copy + 1] =
+            player
+    end
+
+
+    for _,
+        player
+    in ipairs(copy)
+    do
+
+        DestroyPlayerESP(
+            player
+        )
+    end
+end
+
+
+local function CreatePlayerESP(
+    player
+)
+
+    if player == LocalPlayer then
+        return nil
+    end
+
+
+    local character =
+        player.Character
+
+
+    if not character then
+        return nil
+    end
+
+
+    local head =
+        character:
+        FindFirstChild(
+            "Head"
+        )
+
+
+    if not head then
+        return nil
+    end
+
+
+    local old =
+        Runtime.PlayerESP[
+            player
+        ]
+
+
+    if old
+        and old.Character
+            == character
+    then
+
+        return old
+    end
+
+
+    DestroyPlayerESP(
+        player
+    )
+
+
+    local highlight =
+        Instance.new(
+            "Highlight"
+        )
+
+
+    highlight.Name =
+        "__SaltyRole"
+
+
+    highlight.Adornee =
+        character
+
+
+    highlight.DepthMode =
+        Enum.HighlightDepthMode
+            .AlwaysOnTop
+
+
+    highlight.FillTransparency =
