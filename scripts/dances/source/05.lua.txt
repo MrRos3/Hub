@@ -1,0 +1,397 @@
+        CONFIG.AutoAcceptChallenges =
+
+            value
+
+    end,
+
+})
+
+
+Automation:Toggle({
+
+    Title =
+
+        "Auto Pick Song",
+
+
+    Desc =
+
+        "Automatically choose an available song when it's your turn.",
+
+
+    Icon =
+
+        "disc-3",
+
+
+    Value =
+
+        CONFIG.AutoPickSong,
+
+
+    Callback = function(value)
+
+        CONFIG.AutoPickSong =
+
+            value
+
+    end,
+
+})
+
+
+Automation:Dropdown({
+
+    Title =
+
+        "Difficulty",
+
+
+    Values = {
+
+        "Easy",
+
+        "Normal",
+
+        "Hard",
+
+        "Insane",
+
+    },
+
+
+    Value =
+
+        CONFIG.PreferredDifficulty,
+
+
+    Callback = function(value)
+
+        CONFIG.PreferredDifficulty =
+
+            tostring(value)
+
+    end,
+
+})
+
+
+--==================================================
+
+-- SETTINGS
+
+--==================================================
+
+
+Settings:Button({
+
+    Title =
+
+        "Re-scan tryHit",
+
+
+    Desc =
+
+        "Locate DanceBattleClient's hit function again.",
+
+
+    Icon =
+
+        "scan",
+
+
+    Callback = function()
+
+        TryHit, TryHitError =
+
+            FindTryHit()
+
+
+        ResetNotes()
+
+
+        if TryHit then
+
+            State.Engine =
+
+                "tryHit found"
+
+
+            if State.InBattle then
+
+                BeginAcquireNotes()
+
+            end
+
+
+            VantaUI:Notify({
+
+                Content =
+
+                    "tryHit found successfully.",
+
+
+                Icon =
+
+                    "check",
+
+            })
+
+
+        else
+
+            State.Engine =
+
+                "ERROR: "
+
+                .. tostring(
+
+                    TryHitError
+
+                )
+
+
+            VantaUI:Notify({
+
+                Content =
+
+                    State.Engine,
+
+
+                Icon =
+
+                    "triangle-alert",
+
+            })
+
+        end
+
+    end,
+
+})
+
+
+Settings:Button({
+
+    Title =
+
+        "Salty Special",
+
+
+    Icon =
+
+        "sparkles",
+
+
+    Callback = function()
+
+        VantaUI:SetTheme(
+
+            "Salty Special"
+
+        )
+
+    end,
+
+})
+
+
+Settings:Button({
+
+    Title =
+
+        "Vanta Dark",
+
+
+    Icon =
+
+        "moon",
+
+
+    Callback = function()
+
+        VantaUI:SetTheme(
+
+            "Vanta Dark"
+
+        )
+
+    end,
+
+})
+
+
+Settings:Button({
+
+    Title =
+
+        "Vanta AMOLED",
+
+
+    Icon =
+
+        "circle-dot",
+
+
+    Callback = function()
+
+        VantaUI:SetTheme(
+
+            "Vanta AMOLED"
+
+        )
+
+    end,
+
+})
+
+
+--==================================================
+
+-- BATTLE START
+
+--==================================================
+
+
+Runtime:Connect(
+
+    Remotes.Start.OnClientEvent,
+
+    function()
+
+        State.InBattle =
+
+            true
+
+
+        ResetNotes()
+
+
+        ------------------------------------------------
+
+        -- IMPORTANT PERFORMANCE CHANGE:
+
+        --
+
+        -- Upvalue scanning is no longer performed from
+
+        -- Heartbeat.
+
+        ------------------------------------------------
+
+
+        BeginAcquireNotes()
+
+    end
+
+)
+
+
+--==================================================
+
+-- BATTLE END
+
+--==================================================
+
+
+Runtime:Connect(
+
+    Remotes.BattleEnd.OnClientEvent,
+
+    function()
+
+        State.InBattle =
+
+            false
+
+
+        ResetNotes()
+
+    end
+
+)
+
+
+Runtime:Connect(
+
+    Remotes.Cancelled.OnClientEvent,
+
+    function(data)
+
+        local reason =
+
+            type(data) == "table"
+
+            and data.reason
+
+            or nil
+
+
+        if State.InBattle
+
+            and reason ~= "waiting_song"
+
+        then
+
+            State.InBattle =
+
+                false
+
+
+            ResetNotes()
+
+        end
+
+    end
+
+)
+
+
+--==================================================
+
+-- AUTO ACCEPT
+
+--==================================================
+
+
+Runtime:Connect(
+
+    Remotes.ChallengeInvite.OnClientEvent,
+
+    function()
+
+        if not CONFIG.AutoAcceptChallenges then
+
+            return
+
+        end
+
+
+        task.delay(
+
+            0.15,
+
+            function()
+
+                if not Runtime.Alive then
+
+                    return
+
+                end
+
+
+                Remotes.ChallengeReply:FireServer(
+
+                    true
+
+                )
+
+            end
+
+        )
+
+    end
+
+)
+
+
