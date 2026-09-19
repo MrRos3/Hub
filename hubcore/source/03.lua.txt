@@ -1,0 +1,186 @@
+    local fit = math.min((viewport.X - 24) / 820, (viewport.Y - 24) / 540, 1)
+    scale.Scale = math.clamp(fit, 0.55, 1)
+end
+updateScale()
+if Workspace.CurrentCamera then
+    Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
+end
+Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+    updateScale()
+end)
+
+-- Header --------------------------------------------------------------------
+local header = create("Frame", {
+    Name = "Header",
+    Size = UDim2.new(1, 0, 0, 65),
+    BackgroundColor3 = THEME.Window,
+    BorderSizePixel = 0,
+    Parent = main,
+})
+
+create("UIGradient", {
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromHex("#171022")),
+        ColorSequenceKeypoint.new(0.42, THEME.Window),
+        ColorSequenceKeypoint.new(1, THEME.Window),
+    }),
+    Rotation = 0,
+    Parent = header,
+})
+
+create("Frame", {
+    Position = UDim2.new(0, 0, 1, -1),
+    Size = UDim2.new(1, 0, 0, 1),
+    BackgroundColor3 = Color3.fromRGB(31, 31, 36),
+    BackgroundTransparency = 0.25,
+    BorderSizePixel = 0,
+    Parent = header,
+})
+
+local signatureLine = create("Frame", {
+    Position = UDim2.fromOffset(22, 0),
+    Size = UDim2.new(1, -44, 0, 1),
+    BackgroundColor3 = Color3.new(1, 1, 1),
+    BorderSizePixel = 0,
+    Parent = header,
+})
+create("UIGradient", {
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromHex("#6D4DB0")),
+        ColorSequenceKeypoint.new(0.42, Color3.fromHex("#2D204B")),
+        ColorSequenceKeypoint.new(1, THEME.Window),
+    }),
+    Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.35),
+        NumberSequenceKeypoint.new(0.42, 0.7),
+        NumberSequenceKeypoint.new(1, 1),
+    }),
+    Parent = signatureLine,
+})
+
+local mark = create("Frame", {
+    Name = "Mark",
+    Position = UDim2.fromOffset(24, 18),
+    Size = UDim2.fromOffset(29, 29),
+    BackgroundColor3 = THEME.Accent,
+    BorderSizePixel = 0,
+    Rotation = 45,
+    Parent = header,
+}, {
+    corner(8),
+    stroke(Color3.fromHex("#8467C4"), 0.45, 1),
+})
+create("UIGradient", {
+    Color = ColorSequence.new(Color3.fromHex("#44306E"), Color3.fromHex("#100D18")),
+    Rotation = 45,
+    Parent = mark,
+})
+create("Frame", {
+    Position = UDim2.fromOffset(6, 6),
+    Size = UDim2.fromOffset(8, 8),
+    BackgroundColor3 = Color3.fromHex("#B8A2E6"),
+    BorderSizePixel = 0,
+    Parent = mark,
+}, { corner(2) })
+create("Frame", {
+    AnchorPoint = Vector2.new(1, 1),
+    Position = UDim2.new(1, -6, 1, -6),
+    Size = UDim2.fromOffset(8, 8),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    Parent = mark,
+}, { corner(2), stroke(Color3.fromHex("#6C529F"), 0, 1) })
+
+create("TextLabel", {
+    Position = UDim2.fromOffset(64, 17),
+    Size = UDim2.fromOffset(150, 18),
+    BackgroundTransparency = 1,
+    Text = "Salty Hub",
+    TextColor3 = THEME.Text,
+    TextSize = 14,
+    FontFace = font(Enum.FontWeight.SemiBold),
+    TextXAlignment = Enum.TextXAlignment.Left,
+    Parent = header,
+})
+create("TextLabel", {
+    Position = UDim2.fromOffset(64, 36),
+    Size = UDim2.fromOffset(220, 14),
+    BackgroundTransparency = 1,
+    Text = "Script library  •  Online library",
+    TextColor3 = THEME.Muted2,
+    TextSize = 10,
+    FontFace = font(Enum.FontWeight.Regular),
+    TextXAlignment = Enum.TextXAlignment.Left,
+    Parent = header,
+})
+
+local statusWrap = create("Frame", {
+    AnchorPoint = Vector2.new(1, 0.5),
+    Position = UDim2.new(1, -22, 0.5, 0),
+    Size = UDim2.fromOffset(88, 22),
+    BackgroundTransparency = 1,
+    Parent = header,
+})
+create("Frame", {
+    Position = UDim2.fromOffset(5, 8),
+    Size = UDim2.fromOffset(6, 6),
+    BackgroundColor3 = THEME.Success,
+    BorderSizePixel = 0,
+    Parent = statusWrap,
+}, { corner(99) })
+create("TextLabel", {
+    Position = UDim2.fromOffset(18, 0),
+    Size = UDim2.fromOffset(68, 22),
+    BackgroundTransparency = 1,
+    Text = "Connected",
+    TextColor3 = THEME.Muted,
+    TextSize = 10,
+    FontFace = font(Enum.FontWeight.Regular),
+    TextXAlignment = Enum.TextXAlignment.Left,
+    Parent = statusWrap,
+})
+
+-- Search --------------------------------------------------------------------
+local searchFrame = create("Frame", {
+    Name = "Search",
+    Position = UDim2.fromOffset(22, 82),
+    Size = UDim2.new(1, -44, 0, 39),
+    BackgroundColor3 = THEME.Surface,
+    BorderSizePixel = 0,
+    Parent = main,
+}, {
+    corner(8),
+    stroke(Color3.fromRGB(34, 34, 40), 0.12, 1),
+})
+
+local searchStroke = searchFrame:FindFirstChildOfClass("UIStroke")
+
+-- Small hand-built search glyph keeps the UI crisp without requiring an external icon.
+local searchGlyph = create("Frame", {
+    Position = UDim2.fromOffset(12, 12),
+    Size = UDim2.fromOffset(12, 12),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    Parent = searchFrame,
+})
+create("Frame", {
+    Size = UDim2.fromOffset(9, 9),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    Parent = searchGlyph,
+}, { corner(99), stroke(THEME.Muted2, 0.1, 1) })
+create("Frame", {
+    Position = UDim2.fromOffset(8, 8),
+    Size = UDim2.fromOffset(5, 1),
+    Rotation = 45,
+    BackgroundColor3 = THEME.Muted2,
+    BorderSizePixel = 0,
+    Parent = searchGlyph,
+})
+
+local searchBox = create("TextBox", {
+    Name = "SearchBox",
+    Position = UDim2.fromOffset(34, 0),
+    Size = UDim2.new(1, -88, 1, 0),
+    BackgroundTransparency = 1,
+    Text = "",
