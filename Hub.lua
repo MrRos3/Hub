@@ -264,12 +264,14 @@ local backdrop = create("Frame", {
     Name = "Backdrop",
     Size = UDim2.fromScale(1, 1),
     BackgroundColor3 = Color3.new(0, 0, 0),
-    BackgroundTransparency = 0.42,
+    BackgroundTransparency = 0.68,
     BorderSizePixel = 0,
     Parent = gui,
 })
 
-local main = create("CanvasGroup", {
+-- Use a plain Frame here. Some executor renderers incorrectly preserve a
+-- CanvasGroup's initial GroupTransparency and make every descendant almost black.
+local main = create("Frame", {
     Name = "Window",
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.fromScale(0.5, 0.5),
@@ -277,7 +279,6 @@ local main = create("CanvasGroup", {
     BackgroundColor3 = THEME.Background,
     BorderSizePixel = 0,
     ClipsDescendants = true,
-    GroupTransparency = 1,
     Parent = backdrop,
 }, {
     corner(12),
@@ -688,12 +689,12 @@ local noticeSequence = 0
 local function notify(title, message, kind)
     noticeSequence = noticeSequence + 1
     local accent = kind == "error" and THEME.Danger or THEME.AccentMuted
-    local notice = create("CanvasGroup", {
+    local notice = create("Frame", {
         LayoutOrder = -noticeSequence,
         Size = UDim2.fromOffset(320, 72),
         BackgroundColor3 = THEME.SurfaceRaised,
         BorderSizePixel = 0,
-        GroupTransparency = 1,
+        BackgroundTransparency = 0.03,
         ZIndex = 51,
         Parent = notificationHost,
     }, {
@@ -740,12 +741,10 @@ local function notify(title, message, kind)
     })
 
     local noticeScale = create("UIScale", { Scale = 0.96, Parent = notice })
-    tween(notice, 0.2, { GroupTransparency = 0 })
     tween(noticeScale, 0.2, { Scale = 1 })
 
     task.delay(kind == "error" and 5.5 or 2.8, function()
         if notice.Parent then
-            tween(notice, 0.16, { GroupTransparency = 1 })
             tween(noticeScale, 0.16, { Scale = 0.97 })
             task.delay(0.17, function()
                 if notice.Parent then
@@ -1226,13 +1225,10 @@ local function setShown(value)
     shown = value
     if value then
         gui.Enabled = true
-        main.GroupTransparency = 1
         local targetScale = windowScale:GetAttribute("TargetScale") or 1
         windowScale.Scale = targetScale * 0.97
-        tween(main, 0.2, { GroupTransparency = 0 })
         tween(windowScale, 0.2, { Scale = targetScale })
     else
-        tween(main, 0.16, { GroupTransparency = 1 })
         tween(windowScale, 0.16, { Scale = (windowScale:GetAttribute("TargetScale") or 1) * 0.98 })
         task.delay(0.17, function()
             if not shown and not closed then
@@ -1326,7 +1322,6 @@ local function closeHub()
     if cameraConnection then
         cameraConnection:Disconnect()
     end
-    tween(main, 0.16, { GroupTransparency = 1 })
     tween(windowScale, 0.16, { Scale = (windowScale:GetAttribute("TargetScale") or 1) * 0.96 })
     task.delay(0.17, function()
         if gui.Parent then
@@ -1361,5 +1356,6 @@ end)
 refresh()
 setViewVisuals()
 updateScale()
-tween(main, 0.24, { GroupTransparency = 0 })
-tween(windowScale, 0.24, { Scale = windowScale:GetAttribute("TargetScale") or 1 })
+local initialScale = windowScale:GetAttribute("TargetScale") or 1
+windowScale.Scale = initialScale * 0.97
+tween(windowScale, 0.24, { Scale = initialScale })
