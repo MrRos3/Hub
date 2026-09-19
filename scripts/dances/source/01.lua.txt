@@ -1,0 +1,359 @@
+--// Salty
+
+--// Alzzmy's DANCES
+
+--// VantaUI AutoPlayer
+
+--// Internal tryHit Edition
+
+--// Performance Optimized
+
+
+local Players = game:GetService("Players")
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local RunService = game:GetService("RunService")
+
+local Workspace = game:GetService("Workspace")
+
+
+local LocalPlayer = Players.LocalPlayer
+
+
+--==================================================
+
+-- CLEAN OLD SALTY RUNTIME
+
+--==================================================
+
+
+local ENV = getgenv and getgenv() or _G
+
+
+if ENV.__SALTY_DANCE_RUNTIME then
+
+    pcall(function()
+
+        ENV.__SALTY_DANCE_RUNTIME:Destroy()
+
+    end)
+
+end
+
+
+local Runtime = {
+
+    Alive = true,
+
+    Connections = {},
+
+    Window = nil,
+
+}
+
+
+function Runtime:Connect(signal, callback)
+
+    local connection = signal:Connect(callback)
+
+
+    table.insert(
+
+        self.Connections,
+
+        connection
+
+    )
+
+
+    return connection
+
+end
+
+
+function Runtime:Destroy()
+
+    if not self.Alive then
+
+        return
+
+    end
+
+
+    self.Alive = false
+
+
+    for _, connection in ipairs(
+
+        self.Connections
+
+    ) do
+
+        pcall(function()
+
+            connection:Disconnect()
+
+        end)
+
+    end
+
+
+    table.clear(
+
+        self.Connections
+
+    )
+
+
+    if self.Window then
+
+        pcall(function()
+
+            self.Window:Destroy()
+
+        end)
+
+    end
+
+end
+
+
+ENV.__SALTY_DANCE_RUNTIME = Runtime
+
+
+--==================================================
+
+-- CONFIG
+
+--==================================================
+
+
+local CONFIG = {
+
+    Enabled = true,
+
+
+    AccuracyMode = "Perfect",
+
+
+    HumanMissRate = 0.02,
+
+    HumanGoodRate = 0.15,
+
+
+    TimingOffset = 0,
+
+
+    AutoAcceptChallenges = true,
+
+    AutoPickSong = true,
+
+
+    PreferredDifficulty = "Normal",
+
+    BattleMode = "Battle",
+
+
+    ------------------------------------------------
+
+    -- PERFORMANCE
+
+    ------------------------------------------------
+
+
+    -- Never burst a whole chord in one Heartbeat.
+
+    -- Four-note chords will normally finish across
+
+    -- two frames, still inside the Perfect window.
+
+    HitBudgetPerHeartbeat = 2,
+
+
+    -- Maximum notes inspected by the hot loop.
+
+    NoteCheckBudget = 10,
+
+
+    -- Don't inspect far-future notes.
+
+    LookAhead = 0.16,
+
+
+    -- Upvalue acquisition is kept OUT of Heartbeat.
+
+    AcquireInterval = 0.35,
+
+
+    -- VantaUI status refresh rate.
+
+    StatusInterval = 1.0,
+
+}
+
+
+--==================================================
+
+-- GAME CONFIG
+
+--==================================================
+
+
+local DanceBattleConfig =
+
+    require(
+
+        ReplicatedStorage:WaitForChild(
+
+            "DanceBattleConfig"
+
+        )
+
+    )
+
+
+local PerfectWindow =
+
+    DanceBattleConfig.PerfectWindow
+
+    or 0.05
+
+
+local GoodWindow =
+
+    DanceBattleConfig.GoodWindow
+
+    or 0.12
+
+
+--==================================================
+
+-- REMOTES
+
+--==================================================
+
+
+local Events =
+
+    ReplicatedStorage:WaitForChild(
+
+        "Events"
+
+    )
+
+
+local Remotes = {
+
+    Start =
+
+        Events:WaitForChild(
+
+            "DB_Start"
+
+        ),
+
+
+    BattleEnd =
+
+        Events:WaitForChild(
+
+            "DB_BattleEnd"
+
+        ),
+
+
+    Cancelled =
+
+        Events:WaitForChild(
+
+            "DB_Cancelled"
+
+        ),
+
+
+    ChallengeInvite =
+
+        Events:WaitForChild(
+
+            "DB_ChallengeInvite"
+
+        ),
+
+
+    ChallengeReply =
+
+        Events:WaitForChild(
+
+            "DB_ChallengeReply"
+
+        ),
+
+
+    SongVote =
+
+        Events:WaitForChild(
+
+            "DB_SongVote"
+
+        ),
+
+
+    ReportHit =
+
+        Events:WaitForChild(
+
+            "DB_ReportHit"
+
+        ),
+
+
+    ReportMiss =
+
+        Events:WaitForChild(
+
+            "DB_ReportMiss"
+
+        ),
+
+}
+
+
+--==================================================
+
+-- EXECUTOR HELPERS
+
+--==================================================
+
+
+local GetConstants =
+
+    debug
+
+    and debug.getconstants
+
+    or getconstants
+
+
+local GetUpvalues =
+
+    debug
+
+    and debug.getupvalues
+
+    or getupvalues
+
+
+local IsExecutorClosure =
+
+    isexecutorclosure
+
+    or is_synapse_function
+
+    or function()
+
+        return false
+
+    end
+
+
