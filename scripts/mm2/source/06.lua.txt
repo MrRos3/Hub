@@ -1,0 +1,428 @@
+        0.035
+    )
+
+
+    local gun =
+        FindWeapon(
+            "Gun",
+            true
+        )
+
+
+    if not gun then
+
+        Runtime.LastShotStatus =
+            "Gun failed to equip"
+
+        return false
+    end
+
+
+    local shoot =
+        gun:
+        FindFirstChild(
+            "Shoot"
+        )
+
+
+    if not shoot
+        or not shoot:IsA(
+            "RemoteEvent"
+        )
+    then
+
+        Runtime.LastShotStatus =
+            "Shoot remote missing"
+
+        return false
+    end
+
+
+    if Settings.RequireLineOfSight
+        and not HasLineOfSight(
+            murderer
+        )
+    then
+
+        Runtime.LastShotStatus =
+            "Blocked"
+
+        return false
+    end
+
+
+    local _,
+        _,
+        root =
+        GetCharacter()
+
+
+    local target =
+        TargetPart(
+            murderer
+        )
+
+
+    if not root
+        or not target
+    then
+
+        return false
+    end
+
+
+    local attachment =
+        root:
+        FindFirstChild(
+            "GunRaycastAttachment"
+        )
+
+
+    if not attachment then
+
+        Runtime.LastShotStatus =
+            "Gun attachment missing"
+
+        return false
+    end
+
+
+    local ok =
+        pcall(function()
+
+            shoot:
+            FireServer(
+
+                attachment.WorldCFrame,
+
+                target.CFrame
+            )
+
+        end)
+
+
+    if ok then
+
+        Runtime.LastShot =
+            os.clock()
+
+
+        Runtime.ShotRequests +=
+            1
+
+
+        Runtime.LastShotStatus =
+            "Shot → "
+            .. murderer.Name
+
+
+        if notify then
+
+            Notify(
+                "Sheriff",
+                "Shot "
+                .. murderer.DisplayName,
+                "crosshair"
+            )
+        end
+    end
+
+
+    return ok
+end
+
+
+task.spawn(function()
+
+    while Runtime.Running do
+
+        if Settings.AutoShootMurderer
+            and CharacterAlive()
+            and os.clock()
+                - Runtime.LastShot
+                >= Settings.ShootInterval
+        then
+
+            local role =
+                Runtime.LocalRole
+
+
+            if role == "Sheriff"
+                or role == "Hero"
+                or HasGun()
+            then
+
+                ShootMurderer(
+                    false
+                )
+            end
+        end
+
+
+        task.wait(
+            0.10
+        )
+    end
+end)
+
+
+--==============================================================
+-- AIM CAMERA
+--==============================================================
+
+Runtime:
+AddConnection(
+
+    RunService.RenderStepped:
+    Connect(function()
+
+        if not Settings.AimCamera then
+            return
+        end
+
+
+        local murderer =
+            Runtime.Murderer
+
+
+        if not murderer
+            or not HasGun()
+        then
+
+            return
+        end
+
+
+        local target =
+            TargetPart(
+                murderer
+            )
+
+
+        if target then
+
+            Camera.CFrame =
+                CFrame.lookAt(
+
+                    Camera.CFrame.Position,
+
+                    target.Position
+                )
+        end
+    end)
+)
+
+
+--==============================================================
+-- DROPPED GUN CACHE
+--==============================================================
+
+local function InsideCharacter(
+    object
+)
+
+    for _,
+        player
+    in ipairs(
+        Players:
+        GetPlayers()
+    )
+    do
+
+        if player.Character
+            and object:
+                IsDescendantOf(
+                    player.Character
+                )
+        then
+
+            return true
+        end
+    end
+
+
+    return false
+end
+
+
+local function IsDisplayObject(
+    object
+)
+
+    local current =
+        object
+
+
+    for _ = 1, 5 do
+
+        if not current then
+            break
+        end
+
+
+        if current.Name
+            == "WeaponDisplays"
+            or current.Name:
+                find(
+                    "DisplayRef"
+                )
+            or HasTag(
+                current,
+                "WeaponDisplay"
+            )
+            or HasTag(
+                current,
+                "WeaponDisplayRef"
+            )
+        then
+
+            return true
+        end
+
+
+        current =
+            current.Parent
+    end
+
+
+    return false
+end
+
+
+local function ObjectPart(
+    object
+)
+
+    if not object then
+        return nil
+    end
+
+
+    if object:IsA(
+        "BasePart"
+    )
+    then
+
+        return object
+    end
+
+
+    if object:IsA(
+        "Tool"
+    )
+    then
+
+        return object:
+            FindFirstChild(
+                "Handle"
+            )
+    end
+
+
+    if object:IsA(
+        "Model"
+    )
+    then
+
+        return object.PrimaryPart
+
+            or object:
+                FindFirstChildWhichIsA(
+                    "BasePart",
+                    true
+                )
+    end
+
+
+    return nil
+end
+
+
+local function RegisterGunCandidate(
+    object
+)
+
+    if not object
+        or Runtime.GunCandidates[
+            object
+        ]
+    then
+
+        return
+    end
+
+
+    local name =
+        object.Name:
+        lower()
+
+
+    local candidate =
+        false
+
+
+    if object:IsA(
+        "Tool"
+    )
+        and IsGun(object)
+    then
+
+        candidate = true
+    end
+
+
+    if name:find(
+        "gundrop",
+        1,
+        true
+    )
+        or name:find(
+            "droppedgun",
+            1,
+            true
+        )
+        or name:find(
+            "gunpickup",
+            1,
+            true
+        )
+    then
+
+        candidate = true
+    end
+
+
+    if object:GetAttribute(
+        "IsGun"
+    ) == true
+    then
+
+        candidate = true
+    end
+
+
+    if candidate then
+
+        Runtime.GunCandidates[
+            object
+        ] =
+            true
+    end
+end
+
+
+--==============================================================
+-- INITIAL WEAPON-GUN CACHE
+--==============================================================
+
+for _,
+    object
+in ipairs(
+    CollectionService:
+    GetTagged(
+        "Weapon_Gun"
+    )
+)
+do
+
+    RegisterGunCandidate(
