@@ -1,5 +1,5 @@
--- Velora Hub bootstrap v12
--- Compact premium cards + rounded image-ready tiles.
+-- Velora Hub bootstrap v13
+-- Compact premium cards + rounded game thumbnails with safe initial fallbacks.
 
 local BASE_URL = "https://raw.githubusercontent.com/MrRos3/Hub/d1dbc49d32489c9b8b837c960654d46dee8ca4be/Hub.lua"
 local cache = tostring(os.time()) .. "-" .. tostring(math.random(100000, 999999))
@@ -21,8 +21,35 @@ end
 local compactPass = [=[
 
 --==============================================================
--- V12 COMPACT IMAGE-READY CARD PASS
+-- V13 COMPACT CARD IMAGE PASS
 --==============================================================
+
+-- Card artwork. These URLs are cached locally when the executor supports files;
+-- otherwise the existing first-letter tile remains as the fallback.
+replaceExact(
+    '        Url = "https://raw.githubusercontent.com/MrRos3/Velora/main/loader.lua",',
+    '        Url = "https://raw.githubusercontent.com/MrRos3/Velora/main/loader.lua",\n'
+        .. '        ImageUrl = "https://raw.githubusercontent.com/MrRos3/Hub/main/assets/cards/velora-piano.webp",',
+    "Velora Piano card image"
+)
+replaceExact(
+    '        Url = "https://raw.githubusercontent.com/MrRos3/Hub/main/scripts/ShadowNetwork.lua",',
+    '        Url = "https://raw.githubusercontent.com/MrRos3/Hub/main/scripts/ShadowNetwork.lua",\n'
+        .. '        ImageUrl = "https://raw.githubusercontent.com/MrRos3/Hub/main/assets/cards/shadow-network.webp",',
+    "Shadow Network card image"
+)
+replaceExact(
+    '        Url = "https://raw.githubusercontent.com/MrRos3/Hub/main/scripts/MM2.lua",',
+    '        Url = "https://raw.githubusercontent.com/MrRos3/Hub/main/scripts/MM2.lua",\n'
+        .. '        ImageUrl = "https://raw.githubusercontent.com/MrRos3/Hub/main/assets/cards/mm2.webp",',
+    "MM2 card image"
+)
+replaceExact(
+    '        Url = "https://raw.githubusercontent.com/MrRos3/Hub/main/scripts/Dances.lua",',
+    '        Url = "https://raw.githubusercontent.com/MrRos3/Hub/main/scripts/Dances.lua",\n'
+        .. '        ImageUrl = "https://raw.githubusercontent.com/MrRos3/Hub/main/assets/cards/alzzmys-dances.webp",',
+    "Alzzmy's DANCES card image"
+)
 
 -- Smaller overall window so a four-script library does not leave a huge dead area.
 replaceExact("Size = UDim2.fromScale(0.68, 0.56),", "Size = UDim2.fromScale(0.68, 0.49),", "compact window size")
@@ -108,28 +135,41 @@ local function applyCardImage(entry, initialBox, initialText)
         return false
     end
 
-    local path = "VeloraHub/assets/card_" .. tostring(entry.Id or "script") .. ".png"
+    local path = "VeloraHub/assets/card_" .. tostring(entry.Id or "script") .. ".webp"
     local asset = cacheRemoteAsset(entry.ImageUrl, path, entry.Image or "")
     if asset == "" then
         return false
     end
 
-    if initialText then
-        initialText.Visible = false
-    end
-
-    create("ImageLabel", {
+    local cover = create("ImageLabel", {
         Name = "CardImage",
         Position = UDim2.fromOffset(3, 3),
         Size = UDim2.new(1, -6, 1, -6),
         BackgroundTransparency = 1,
         Image = asset,
+        ImageTransparency = 1,
         ScaleType = Enum.ScaleType.Crop,
         ZIndex = 4,
         Parent = initialBox,
     }, {
         corner(12),
     })
+
+    local revealed = false
+    local function revealLoadedImage()
+        if revealed or not cover.IsLoaded then
+            return
+        end
+
+        revealed = true
+        cover.ImageTransparency = 0
+        if initialText then
+            initialText.Visible = false
+        end
+    end
+
+    cover:GetPropertyChangedSignal("IsLoaded"):Connect(revealLoadedImage)
+    task.defer(revealLoadedImage)
 
     return true
 end
@@ -343,7 +383,7 @@ bootstrap = bootstrap:sub(1, insertAt - 1)
 
 local chunk, compileError = loadstring(bootstrap)
 if not chunk then
-    error("[Velora Hub] Failed to compile v12 bootstrap: " .. tostring(compileError), 0)
+    error("[Velora Hub] Failed to compile v13 bootstrap: " .. tostring(compileError), 0)
 end
 
 return chunk()
