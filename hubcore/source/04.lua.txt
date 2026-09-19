@@ -1,0 +1,186 @@
+    PlaceholderText = "Search scripts, games, or categories...",
+    PlaceholderColor3 = THEME.Muted2,
+    TextColor3 = THEME.Text,
+    TextSize = 12,
+    FontFace = font(Enum.FontWeight.Regular),
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ClearTextOnFocus = false,
+    Parent = searchFrame,
+})
+
+local shortcut = create("TextLabel", {
+    AnchorPoint = Vector2.new(1, 0.5),
+    Position = UDim2.new(1, -10, 0.5, 0),
+    Size = UDim2.fromOffset(43, 22),
+    BackgroundColor3 = THEME.Surface2,
+    Text = "Ctrl K",
+    TextColor3 = Color3.fromHex("#65656E"),
+    TextSize = 9,
+    FontFace = font(Enum.FontWeight.Medium),
+    BorderSizePixel = 0,
+    Parent = searchFrame,
+}, { corner(4), stroke(Color3.fromRGB(42, 42, 47), 0.15, 1) })
+
+searchBox.Focused:Connect(function()
+    tween(searchStroke, 0.18, { Color = Color3.fromHex("#7352B0"), Transparency = 0.28 })
+end)
+searchBox.FocusLost:Connect(function()
+    tween(searchStroke, 0.18, { Color = Color3.fromRGB(34, 34, 40), Transparency = 0.12 })
+end)
+
+-- Toolbar -------------------------------------------------------------------
+local toolbar = create("Frame", {
+    Name = "Toolbar",
+    Position = UDim2.fromOffset(22, 135),
+    Size = UDim2.new(1, -44, 0, 30),
+    BackgroundTransparency = 1,
+    Parent = main,
+})
+
+local filterHolder = create("Frame", {
+    Size = UDim2.fromOffset(430, 30),
+    BackgroundTransparency = 1,
+    Parent = toolbar,
+}, {
+    create("UIListLayout", {
+        FillDirection = Enum.FillDirection.Horizontal,
+        HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        VerticalAlignment = Enum.VerticalAlignment.Center,
+        Padding = UDim.new(0, 5),
+    }),
+})
+
+local currentFilter = "All Scripts"
+local currentSort = settingsData.sort
+local currentView = settingsData.view
+local filterButtons = {}
+
+local function favoriteCount()
+    local count = 0
+    for _, entry in ipairs(SCRIPTS) do
+        if settingsData.favorites[entry.Id] then
+            count += 1
+        end
+    end
+    return count
+end
+
+local FILTERS = {
+    { Name = "All Scripts", Width = 70 },
+    { Name = "Games", Width = 52 },
+    { Name = "Universal", Width = 67 },
+    { Name = "Favorites", Width = 78 },
+}
+
+local function makeFilter(info)
+    local button = create("TextButton", {
+        Name = info.Name,
+        Size = UDim2.fromOffset(info.Width, 29),
+        BackgroundColor3 = THEME.Surface2,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Text = info.Name,
+        TextColor3 = THEME.Muted,
+        TextSize = 10,
+        FontFace = font(Enum.FontWeight.Medium),
+        AutoButtonColor = false,
+        Parent = filterHolder,
+    }, { corner(6), stroke(THEME.AccentBorder, 1, 1) })
+    filterButtons[info.Name] = button
+    return button
+end
+
+for _, info in ipairs(FILTERS) do
+    makeFilter(info)
+end
+
+local sortButton = create("TextButton", {
+    AnchorPoint = Vector2.new(1, 0),
+    Position = UDim2.new(1, -72, 0, 0),
+    Size = UDim2.fromOffset(145, 29),
+    BackgroundColor3 = THEME.Surface,
+    BorderSizePixel = 0,
+    Text = "",
+    AutoButtonColor = false,
+    Parent = toolbar,
+}, { corner(6), stroke(Color3.fromRGB(34, 34, 40), 0.12, 1) })
+
+-- Sort glyph: three tiny slider lines.
+local sortGlyph = create("Frame", {
+    Position = UDim2.fromOffset(9, 8),
+    Size = UDim2.fromOffset(14, 13),
+    BackgroundTransparency = 1,
+    Parent = sortButton,
+})
+for i, item in ipairs({ {0, 7}, {5, 3}, {2, 9} }) do
+    create("Frame", {
+        Position = UDim2.fromOffset(0, (i - 1) * 5),
+        Size = UDim2.fromOffset(12, 1),
+        BackgroundColor3 = THEME.Muted2,
+        BorderSizePixel = 0,
+        Parent = sortGlyph,
+    })
+    create("Frame", {
+        Position = UDim2.fromOffset(item[1], (i - 1) * 5 - 1),
+        Size = UDim2.fromOffset(3, 3),
+        BackgroundColor3 = THEME.Muted2,
+        BorderSizePixel = 0,
+        Parent = sortGlyph,
+    }, { corner(99) })
+end
+
+local sortText = create("TextLabel", {
+    Position = UDim2.fromOffset(30, 0),
+    Size = UDim2.new(1, -48, 1, 0),
+    BackgroundTransparency = 1,
+    Text = currentSort,
+    TextColor3 = Color3.fromHex("#A7A7AF"),
+    TextSize = 9,
+    FontFace = font(Enum.FontWeight.Medium),
+    TextXAlignment = Enum.TextXAlignment.Left,
+    Parent = sortButton,
+})
+
+local chevron = create("TextLabel", {
+    AnchorPoint = Vector2.new(1, 0.5),
+    Position = UDim2.new(1, -7, 0.5, 0),
+    Size = UDim2.fromOffset(12, 12),
+    BackgroundTransparency = 1,
+    Text = "⌄",
+    TextColor3 = THEME.Muted2,
+    TextSize = 13,
+    FontFace = font(Enum.FontWeight.Medium),
+    Parent = sortButton,
+})
+
+local viewWrap = create("Frame", {
+    AnchorPoint = Vector2.new(1, 0),
+    Position = UDim2.new(1, 0, 0, 0),
+    Size = UDim2.fromOffset(64, 29),
+    BackgroundColor3 = THEME.Surface,
+    BorderSizePixel = 0,
+    Parent = toolbar,
+}, { corner(6), stroke(Color3.fromRGB(34, 34, 40), 0.12, 1) })
+
+local gridButton = create("TextButton", {
+    Position = UDim2.fromOffset(2, 2),
+    Size = UDim2.fromOffset(29, 25),
+    BackgroundColor3 = THEME.AccentSoft,
+    BorderSizePixel = 0,
+    Text = "",
+    AutoButtonColor = false,
+    Parent = viewWrap,
+}, { corner(4) })
+local listButton = create("TextButton", {
+    Position = UDim2.fromOffset(33, 2),
+    Size = UDim2.fromOffset(29, 25),
+    BackgroundColor3 = THEME.AccentSoft,
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    Text = "",
+    AutoButtonColor = false,
+    Parent = viewWrap,
+}, { corner(4) })
+
+local function makeGridGlyph(parentButton)
+    local holder = create("Frame", {
