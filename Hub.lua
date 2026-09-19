@@ -1,5 +1,5 @@
--- Salty Hub
--- Complete premium Roblox script-library UI.
+-- Velora Hub
+-- Premium Vanta-style script library.
 -- RightShift toggles the window. Ctrl/Cmd + K focuses search.
 
 local Players = game:GetService("Players")
@@ -13,22 +13,24 @@ local player = Players.LocalPlayer
 
 local THEME = {
     Background = Color3.fromHex("#060606"),
-    Surface = Color3.fromHex("#0C0B0F"),
+    Surface = Color3.fromHex("#0B0A0D"),
     SurfaceRaised = Color3.fromHex("#111014"),
-    SurfaceSoft = Color3.fromHex("#0D0C0F"),
-    Border = Color3.fromHex("#211E26"),
-    BorderStrong = Color3.fromHex("#4A3860"),
+    SurfaceHover = Color3.fromHex("#141218"),
+    Border = Color3.fromHex("#242129"),
+    BorderHover = Color3.fromHex("#3D3349"),
     Accent = Color3.fromHex("#36255C"),
-    AccentSoft = Color3.fromHex("#211735"),
-    AccentBright = Color3.fromHex("#BCA3EB"),
-    AccentMuted = Color3.fromHex("#8C6BD1"),
-    Text = Color3.fromHex("#F4F2F7"),
-    TextSoft = Color3.fromHex("#E7E2EB"),
-    Muted = Color3.fromHex("#837C89"),
-    Faint = Color3.fromHex("#645E6D"),
-    Success = Color3.fromHex("#6DCE9E"),
+    AccentSoft = Color3.fromHex("#1C1529"),
+    AccentBright = Color3.fromHex("#9D7ED9"),
+    Text = Color3.fromHex("#F6F3FA"),
+    TextSoft = Color3.fromHex("#DFDAE7"),
+    Muted = Color3.fromHex("#8B8491"),
+    Faint = Color3.fromHex("#5E5864"),
+    Success = Color3.fromHex("#69C99A"),
     Danger = Color3.fromHex("#D06D82"),
 }
+
+local ICON_BASE = "https://raw.githubusercontent.com/MrRos3/SaltyIcons/main/icons/png/96/"
+local BRAND_URL = "https://raw.githubusercontent.com/MrRos3/VantaUI/main/assets/vanta-brand-v2.jpeg"
 
 local SCRIPTS = {
     {
@@ -38,7 +40,6 @@ local SCRIPTS = {
         Game = "Universal",
         Description = "A polished piano player and song workstation built for expressive sessions.",
         Tags = { "piano", "music", "songs", "workstation" },
-        Popular = true,
         Updated = 4,
         Url = "https://raw.githubusercontent.com/MrRos3/Velora/main/loader.lua",
         ImageUrl = "https://raw.githubusercontent.com/MrRos3/Hub/main/assets/cards/velora-piano.jpg",
@@ -49,8 +50,7 @@ local SCRIPTS = {
         Category = "Games",
         Game = "Shadow Network",
         Description = "Focused utilities, ESP, item tools, and automation in one lightweight build.",
-        Tags = { "items", "esp", "automation", "utilities" },
-        Popular = true,
+        Tags = { "shadow network", "items", "esp", "automation" },
         Updated = 3,
         Url = "https://raw.githubusercontent.com/MrRos3/Hub/main/scripts/ShadowNetwork.lua",
         ImageUrl = "https://raw.githubusercontent.com/MrRos3/Hub/main/assets/cards/shadow-network.jpg",
@@ -62,7 +62,6 @@ local SCRIPTS = {
         Game = "Murder Mystery 2",
         Description = "Performance-first role tools, ESP, coins, and sheriff utilities for MM2.",
         Tags = { "murder mystery 2", "roles", "esp", "coins", "sheriff" },
-        Popular = true,
         Updated = 2,
         Url = "https://raw.githubusercontent.com/MrRos3/Hub/main/scripts/MM2.lua",
         ImageUrl = "https://raw.githubusercontent.com/MrRos3/Hub/main/assets/cards/mm2.jpg",
@@ -74,22 +73,21 @@ local SCRIPTS = {
         Game = "Universal",
         Description = "A clean dance and animation library that stays quick, simple, and fun.",
         Tags = { "dance", "animations", "emotes", "universal" },
-        Popular = false,
         Updated = 1,
         Url = "https://raw.githubusercontent.com/MrRos3/Hub/main/scripts/Dances.lua",
         ImageUrl = "https://raw.githubusercontent.com/MrRos3/Hub/main/assets/cards/alzzmys-dances.jpg",
     },
 }
 
-local function create(className, properties, children)
-    local instance = Instance.new(className)
-    for property, value in pairs(properties or {}) do
-        instance[property] = value
+local function create(className, props, children)
+    local obj = Instance.new(className)
+    for k, v in pairs(props or {}) do
+        obj[k] = v
     end
     for _, child in ipairs(children or {}) do
-        child.Parent = instance
+        child.Parent = obj
     end
-    return instance
+    return obj
 end
 
 local function corner(radius)
@@ -105,27 +103,10 @@ local function stroke(color, transparency, thickness)
     })
 end
 
-local function tween(instance, duration, properties, style, direction)
-    local animation = TweenService:Create(
-        instance,
-        TweenInfo.new(
-            duration or 0.18,
-            style or Enum.EasingStyle.Quint,
-            direction or Enum.EasingDirection.Out
-        ),
-        properties
-    )
-    animation:Play()
-    return animation
-end
-
-local function bindHover(instance, enterProperties, leaveProperties, duration)
-    instance.MouseEnter:Connect(function()
-        tween(instance, duration or 0.16, enterProperties)
-    end)
-    instance.MouseLeave:Connect(function()
-        tween(instance, duration or 0.16, leaveProperties)
-    end)
+local function tween(obj, duration, props)
+    local t = TweenService:Create(obj, TweenInfo.new(duration or 0.14, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), props)
+    t:Play()
+    return t
 end
 
 local function normalize(value)
@@ -133,12 +114,12 @@ local function normalize(value)
 end
 
 local function compactError(value)
-    local message = tostring(value or "Unknown error")
-    message = message:gsub("\r", " "):gsub("\n+", " "):gsub("%s+", " ")
-    if #message > 190 then
-        message = message:sub(1, 187) .. "..."
+    local msg = tostring(value or "Unknown error")
+    msg = msg:gsub("\r", " "):gsub("\n+", " "):gsub("%s+", " ")
+    if #msg > 180 then
+        msg = msg:sub(1, 177) .. "..."
     end
-    return message
+    return msg
 end
 
 local function getGuiParent()
@@ -154,17 +135,13 @@ local function getGuiParent()
     return player:WaitForChild("PlayerGui")
 end
 
-local function scriptInitial(name)
-    return string.upper((tostring(name):match("%a") or "?"))
-end
-
 local assetFunction = getcustomasset or getsynasset
 local canUseFiles = type(writefile) == "function"
+    and type(readfile) == "function"
     and type(isfile) == "function"
     and type(makefolder) == "function"
     and type(isfolder) == "function"
-local canCacheAssets = canUseFiles
-    and type(assetFunction) == "function"
+local canCacheAssets = canUseFiles and type(assetFunction) == "function"
 
 local function ensureFolder(path)
     if not canUseFiles then
@@ -179,42 +156,65 @@ local function ensureFolder(path)
     return true
 end
 
-local function safeFileName(value)
-    return tostring(value):gsub("[^%w%-_]", "-")
+local function cacheRemoteAsset(url, path, fallback)
+    if canCacheAssets then
+        ensureFolder("SaltyHub")
+        ensureFolder("SaltyHub/assets")
+        if not isfile(path) then
+            local ok, bytes = pcall(function()
+                return game:HttpGet(url)
+            end)
+            if ok and type(bytes) == "string" and #bytes > 100 then
+                pcall(writefile, path, bytes)
+            end
+        end
+        if isfile(path) then
+            local ok, asset = pcall(assetFunction, path)
+            if ok and asset and asset ~= "" then
+                return asset
+            end
+        end
+    end
+    return fallback or ""
 end
 
-local function cachedAsset(entry)
-    if not canCacheAssets or not entry.ImageUrl then
+local ICONS = {
+    search = { "misc/search.png", "rbxassetid://100557104978626" },
+    close = { "status/x.png", "rbxassetid://104564513546348" },
+    minus = { "status/minus.png", "rbxassetid://123173530093622" },
+    star = { "misc/star.png", "rbxassetid://130603316912957" },
+}
+
+local iconCache = {}
+local function icon(name)
+    if iconCache[name] then
+        return iconCache[name]
+    end
+    local item = ICONS[name]
+    if not item then
         return ""
     end
-    if not ensureFolder("SaltyHub") or not ensureFolder("SaltyHub/assets") then
+    local path = "SaltyHub/assets/icon_" .. name .. ".png"
+    local asset = cacheRemoteAsset(ICON_BASE .. item[1], path, item[2])
+    iconCache[name] = asset
+    return asset
+end
+
+local brandAsset = cacheRemoteAsset(BRAND_URL, "SaltyHub/assets/velora_brand.jpeg", "")
+
+local function cachedCardAsset(entry)
+    if not entry.ImageUrl then
         return ""
     end
-
-    local path = "SaltyHub/assets/" .. safeFileName(entry.Id) .. "_v18.jpg"
-    if not isfile(path) then
-        local ok, bytes = pcall(function()
-            return game:HttpGet(entry.ImageUrl)
-        end)
-        if ok and type(bytes) == "string" and #bytes > 100 then
-            pcall(writefile, path, bytes)
-        end
-    end
-
-    if isfile(path) then
-        local ok, asset = pcall(assetFunction, path)
-        if ok and asset then
-            return asset
-        end
-    end
-    return ""
+    local path = "SaltyHub/assets/card_" .. tostring(entry.Id) .. "_v20.jpg"
+    return cacheRemoteAsset(entry.ImageUrl, path, "")
 end
 
 local favorites = {}
 local favoritesPath = "SaltyHub/favorites.json"
 
 local function loadFavorites()
-    if type(readfile) ~= "function" or type(isfile) ~= "function" or not isfile(favoritesPath) then
+    if not canUseFiles or not isfile(favoritesPath) then
         return
     end
     local ok, decoded = pcall(function()
@@ -228,7 +228,7 @@ local function loadFavorites()
 end
 
 local function saveFavorites()
-    if type(writefile) ~= "function" then
+    if not canUseFiles then
         return
     end
     ensureFolder("SaltyHub")
@@ -240,9 +240,9 @@ end
 loadFavorites()
 
 local parent = getGuiParent()
-local oldGui = parent:FindFirstChild("SaltyHub")
-if oldGui then
-    oldGui:Destroy()
+local old = parent:FindFirstChild("SaltyHub")
+if old then
+    old:Destroy()
 end
 
 local gui = create("ScreenGui", {
@@ -261,7 +261,6 @@ pcall(function()
 end)
 
 local backdrop = create("Frame", {
-    Name = "Backdrop",
     Size = UDim2.fromScale(1, 1),
     BackgroundColor3 = Color3.new(0, 0, 0),
     BackgroundTransparency = 0.68,
@@ -269,42 +268,24 @@ local backdrop = create("Frame", {
     Parent = gui,
 })
 
--- Use a plain Frame here. Some executor renderers incorrectly preserve a
--- CanvasGroup's initial GroupTransparency and make every descendant almost black.
 local main = create("Frame", {
-    Name = "Window",
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.fromScale(0.5, 0.5),
-    Size = UDim2.fromOffset(1080, 680),
+    Size = UDim2.fromOffset(980, 610),
     BackgroundColor3 = THEME.Background,
     BorderSizePixel = 0,
     ClipsDescendants = true,
     Parent = backdrop,
 }, {
     corner(12),
-    stroke(THEME.Border, 0, 1),
+    stroke(Color3.fromHex("#2D2932"), 0.1, 1),
 })
 
-local windowScale = create("UIScale", {
-    Scale = 0.96,
-    Parent = main,
-})
-
-create("UIGradient", {
-    Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromHex("#09070D")),
-        ColorSequenceKeypoint.new(0.38, THEME.Background),
-        ColorSequenceKeypoint.new(1, Color3.fromHex("#050505")),
-    }),
-    Rotation = 18,
-    Parent = main,
-})
+local mainScale = create("UIScale", { Scale = 1, Parent = main })
 
 local topbar = create("Frame", {
-    Name = "Topbar",
     Size = UDim2.new(1, 0, 0, 58),
-    BackgroundColor3 = THEME.Background,
-    BackgroundTransparency = 0.03,
+    BackgroundColor3 = Color3.fromHex("#080709"),
     BorderSizePixel = 0,
     Active = true,
     Parent = main,
@@ -314,55 +295,78 @@ create("Frame", {
     AnchorPoint = Vector2.new(0, 1),
     Position = UDim2.new(0, 0, 1, 0),
     Size = UDim2.new(1, 0, 0, 1),
-    BackgroundColor3 = Color3.fromHex("#17151B"),
+    BackgroundColor3 = Color3.fromHex("#1A171E"),
     BorderSizePixel = 0,
     Parent = topbar,
 })
 
 local brand = create("Frame", {
-    Position = UDim2.fromOffset(22, 14),
-    Size = UDim2.fromOffset(190, 30),
+    Position = UDim2.fromOffset(16, 9),
+    Size = UDim2.fromOffset(220, 40),
     BackgroundTransparency = 1,
     Parent = topbar,
 })
 
-local brandMark = create("Frame", {
-    Position = UDim2.fromOffset(0, 1),
-    Size = UDim2.fromOffset(28, 28),
-    BackgroundColor3 = Color3.fromHex("#1E1432"),
+local brandIcon = create("Frame", {
+    Position = UDim2.fromOffset(0, 2),
+    Size = UDim2.fromOffset(36, 36),
+    BackgroundColor3 = THEME.SurfaceRaised,
     BorderSizePixel = 0,
+    ClipsDescendants = true,
     Parent = brand,
 }, {
-    corner(7),
-    stroke(Color3.fromHex("#5A3E8F"), 0, 1),
+    corner(9),
+    stroke(Color3.fromHex("#4A3A64"), 0.2, 1),
+})
+
+if brandAsset ~= "" then
+    create("ImageLabel", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        Image = brandAsset,
+        ScaleType = Enum.ScaleType.Crop,
+        Parent = brandIcon,
+    })
+else
+    create("TextLabel", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        Text = "V",
+        TextColor3 = THEME.Text,
+        TextSize = 17,
+        Font = Enum.Font.GothamBold,
+        Parent = brandIcon,
+    })
+end
+
+create("TextLabel", {
+    Position = UDim2.fromOffset(48, 1),
+    Size = UDim2.fromOffset(150, 20),
+    BackgroundTransparency = 1,
+    Text = "VELORA",
+    TextColor3 = THEME.Text,
+    TextSize = 14,
+    Font = Enum.Font.GothamSemibold,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    Parent = brand,
 })
 
 create("TextLabel", {
-    Size = UDim2.fromScale(1, 1),
+    Position = UDim2.fromOffset(48, 21),
+    Size = UDim2.fromOffset(150, 14),
     BackgroundTransparency = 1,
-    Text = "✦",
-    TextColor3 = THEME.AccentBright,
-    TextSize = 17,
-    Font = Enum.Font.GothamBold,
-    Parent = brandMark,
-})
-
-create("TextLabel", {
-    Position = UDim2.fromOffset(38, 0),
-    Size = UDim2.fromOffset(112, 30),
-    BackgroundTransparency = 1,
-    RichText = true,
-    Text = '<font color="#F6F3FB"><b>salty</b></font><font color="#77717D">.hub</font>',
-    TextSize = 15,
-    Font = Enum.Font.Gotham,
+    Text = "SCRIPT HUB",
+    TextColor3 = THEME.Muted,
+    TextSize = 8,
+    Font = Enum.Font.GothamMedium,
     TextXAlignment = Enum.TextXAlignment.Left,
     Parent = brand,
 })
 
 local status = create("Frame", {
     AnchorPoint = Vector2.new(0.5, 0.5),
-    Position = UDim2.fromScale(0.5, 0.5),
-    Size = UDim2.fromOffset(100, 24),
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.fromOffset(110, 22),
     BackgroundTransparency = 1,
     Parent = topbar,
 })
@@ -382,7 +386,7 @@ create("TextLabel", {
     BackgroundTransparency = 1,
     Text = "LIBRARY ONLINE",
     TextColor3 = THEME.Faint,
-    TextSize = 9,
+    TextSize = 8,
     Font = Enum.Font.GothamMedium,
     TextXAlignment = Enum.TextXAlignment.Left,
     Parent = status,
@@ -390,55 +394,58 @@ create("TextLabel", {
 
 local topActions = create("Frame", {
     AnchorPoint = Vector2.new(1, 0.5),
-    Position = UDim2.new(1, -14, 0.5, 0),
-    Size = UDim2.fromOffset(158, 32),
+    Position = UDim2.new(1, -12, 0.5, 0),
+    Size = UDim2.fromOffset(156, 32),
     BackgroundTransparency = 1,
     Parent = topbar,
 })
 
-local shortcutButton = create("TextButton", {
+local shortcut = create("TextButton", {
     Position = UDim2.fromOffset(0, 1),
-    Size = UDim2.fromOffset(88, 30),
-    BackgroundColor3 = THEME.SurfaceSoft,
+    Size = UDim2.fromOffset(82, 30),
+    BackgroundColor3 = THEME.Surface,
     BorderSizePixel = 0,
     AutoButtonColor = false,
-    Text = "⌘   CTRL K",
+    Text = "CTRL K",
     TextColor3 = THEME.Faint,
-    TextSize = 9,
+    TextSize = 8,
     Font = Enum.Font.GothamMedium,
     Parent = topActions,
 }, {
-    corner(6),
-    stroke(Color3.fromHex("#242128"), 0, 1),
+    corner(7),
+    stroke(THEME.Border, 0.1, 1),
 })
-bindHover(shortcutButton, { TextColor3 = THEME.TextSoft, BackgroundColor3 = THEME.SurfaceRaised }, { TextColor3 = THEME.Faint, BackgroundColor3 = THEME.SurfaceSoft })
 
-local function topIcon(text, offset, hoverColor)
-    local button = create("TextButton", {
-        Position = UDim2.fromOffset(offset, 1),
-        Size = UDim2.fromOffset(30, 30),
-        BackgroundColor3 = THEME.SurfaceSoft,
+local function topIcon(name, offset, hoverTint)
+    local button = create("ImageButton", {
+        Position = UDim2.fromOffset(offset, 2),
+        Size = UDim2.fromOffset(28, 28),
+        BackgroundColor3 = THEME.Surface,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         AutoButtonColor = false,
-        Text = text,
-        TextColor3 = THEME.Faint,
-        TextSize = 16,
-        Font = Enum.Font.GothamMedium,
+        Image = icon(name),
+        ImageColor3 = THEME.Muted,
+        ScaleType = Enum.ScaleType.Fit,
         Parent = topActions,
-    }, { corner(6) })
-    bindHover(button, {
-        BackgroundTransparency = 0,
-        TextColor3 = hoverColor or THEME.TextSoft,
     }, {
-        BackgroundTransparency = 1,
-        TextColor3 = THEME.Faint,
-    }, 0.12)
+        corner(7),
+        create("UIPadding", {
+            PaddingLeft = UDim.new(0, 7), PaddingRight = UDim.new(0, 7),
+            PaddingTop = UDim.new(0, 7), PaddingBottom = UDim.new(0, 7),
+        }),
+    })
+    button.MouseEnter:Connect(function()
+        tween(button, 0.12, { BackgroundTransparency = 0, ImageColor3 = hoverTint or THEME.TextSoft })
+    end)
+    button.MouseLeave:Connect(function()
+        tween(button, 0.12, { BackgroundTransparency = 1, ImageColor3 = THEME.Muted })
+    end)
     return button
 end
 
-local minimizeButton = topIcon("—", 94)
-local closeButton = topIcon("×", 128, THEME.Danger)
+local minimizeButton = topIcon("minus", 94)
+local closeButton = topIcon("close", 128, THEME.Danger)
 
 local content = create("Frame", {
     Position = UDim2.fromOffset(0, 58),
@@ -448,38 +455,36 @@ local content = create("Frame", {
 })
 
 local searchWrap = create("Frame", {
-    Name = "Search",
-    Position = UDim2.fromOffset(22, 18),
-    Size = UDim2.new(1, -44, 0, 52),
-    BackgroundColor3 = THEME.SurfaceSoft,
+    Position = UDim2.fromOffset(18, 16),
+    Size = UDim2.new(1, -36, 0, 46),
+    BackgroundColor3 = THEME.Surface,
     BorderSizePixel = 0,
     Parent = content,
 }, {
     corner(9),
-    stroke(Color3.fromHex("#2A2533"), 0, 1),
+    stroke(THEME.Border, 0, 1),
 })
 
-create("TextLabel", {
-    Position = UDim2.fromOffset(16, 0),
-    Size = UDim2.fromOffset(20, 52),
+create("ImageLabel", {
+    Position = UDim2.fromOffset(14, 13),
+    Size = UDim2.fromOffset(20, 20),
     BackgroundTransparency = 1,
-    Text = "⌕",
-    TextColor3 = Color3.fromHex("#817A8A"),
-    TextSize = 22,
-    Font = Enum.Font.Gotham,
+    Image = icon("search"),
+    ImageColor3 = THEME.Muted,
+    ScaleType = Enum.ScaleType.Fit,
     Parent = searchWrap,
 })
 
 local searchBox = create("TextBox", {
-    Position = UDim2.fromOffset(47, 0),
-    Size = UDim2.new(1, -100, 1, 0),
+    Position = UDim2.fromOffset(44, 0),
+    Size = UDim2.new(1, -92, 1, 0),
     BackgroundTransparency = 1,
     ClearTextOnFocus = false,
     PlaceholderText = "Search games or scripts...",
-    PlaceholderColor3 = Color3.fromHex("#77707F"),
+    PlaceholderColor3 = THEME.Faint,
     Text = "",
-    TextColor3 = Color3.fromHex("#EEEAF2"),
-    TextSize = 13,
+    TextColor3 = THEME.TextSoft,
+    TextSize = 12,
     Font = Enum.Font.Gotham,
     TextXAlignment = Enum.TextXAlignment.Left,
     Parent = searchWrap,
@@ -487,151 +492,131 @@ local searchBox = create("TextBox", {
 
 local searchShortcut = create("TextButton", {
     AnchorPoint = Vector2.new(1, 0.5),
-    Position = UDim2.new(1, -13, 0.5, 0),
-    Size = UDim2.fromOffset(28, 24),
+    Position = UDim2.new(1, -10, 0.5, 0),
+    Size = UDim2.fromOffset(26, 24),
     BackgroundColor3 = Color3.fromHex("#100F12"),
     BorderSizePixel = 0,
     Text = "/",
-    TextColor3 = Color3.fromHex("#77707F"),
-    TextSize = 11,
+    TextColor3 = THEME.Faint,
+    TextSize = 10,
     Font = Enum.Font.Code,
     AutoButtonColor = false,
     Parent = searchWrap,
 }, {
-    corner(4),
-    stroke(Color3.fromHex("#29242D"), 0, 1),
+    corner(5),
+    stroke(THEME.Border, 0.1, 1),
 })
 
 local searchStroke = searchWrap:FindFirstChildOfClass("UIStroke")
 searchBox.Focused:Connect(function()
-    tween(searchWrap, 0.18, { BackgroundColor3 = Color3.fromHex("#100E13") })
-    tween(searchStroke, 0.18, { Color = THEME.BorderStrong })
+    tween(searchStroke, 0.15, { Color = THEME.BorderHover })
 end)
 searchBox.FocusLost:Connect(function()
-    tween(searchWrap, 0.18, { BackgroundColor3 = THEME.SurfaceSoft })
-    tween(searchStroke, 0.18, { Color = Color3.fromHex("#2A2533") })
+    tween(searchStroke, 0.15, { Color = THEME.Border })
 end)
 
 local toolbar = create("Frame", {
-    Position = UDim2.fromOffset(22, 84),
-    Size = UDim2.new(1, -44, 0, 38),
+    Position = UDim2.fromOffset(18, 72),
+    Size = UDim2.new(1, -36, 0, 34),
     BackgroundTransparency = 1,
     Parent = content,
 })
 
 local filterHolder = create("Frame", {
-    Size = UDim2.new(0, 440, 1, 0),
+    Size = UDim2.new(0, 420, 1, 0),
     BackgroundTransparency = 1,
     Parent = toolbar,
 }, {
     create("UIListLayout", {
         FillDirection = Enum.FillDirection.Horizontal,
-        Padding = UDim.new(0, 5),
+        Padding = UDim.new(0, 6),
         VerticalAlignment = Enum.VerticalAlignment.Center,
     }),
 })
 
-local sortButton = create("TextButton", {
+local countLabel = create("TextLabel", {
     AnchorPoint = Vector2.new(1, 0.5),
     Position = UDim2.new(1, 0, 0.5, 0),
-    Size = UDim2.fromOffset(154, 30),
-    BackgroundTransparency = 1,
+    Size = UDim2.fromOffset(88, 28),
+    BackgroundColor3 = THEME.Surface,
     BorderSizePixel = 0,
-    AutoButtonColor = false,
-    Text = "≡   Recently updated   ⌄",
-    TextColor3 = Color3.fromHex("#77717E"),
-    TextSize = 10,
-    Font = Enum.Font.Gotham,
-    TextXAlignment = Enum.TextXAlignment.Right,
+    Text = "4 scripts",
+    TextColor3 = THEME.Muted,
+    TextSize = 8,
+    Font = Enum.Font.GothamMedium,
     Parent = toolbar,
+}, {
+    corner(7),
+    stroke(THEME.Border, 0.1, 1),
 })
-bindHover(sortButton, { TextColor3 = THEME.TextSoft }, { TextColor3 = Color3.fromHex("#77717E") }, 0.12)
 
 create("Frame", {
-    Position = UDim2.fromOffset(22, 126),
-    Size = UDim2.new(1, -44, 0, 1),
+    Position = UDim2.fromOffset(18, 113),
+    Size = UDim2.new(1, -36, 0, 1),
     BackgroundColor3 = Color3.fromHex("#17151B"),
     BorderSizePixel = 0,
     Parent = content,
 })
 
 local heading = create("Frame", {
-    Position = UDim2.fromOffset(22, 146),
-    Size = UDim2.new(1, -44, 0, 50),
+    Position = UDim2.fromOffset(18, 132),
+    Size = UDim2.new(1, -36, 0, 50),
     BackgroundTransparency = 1,
     Parent = content,
 })
 
 create("TextLabel", {
-    Size = UDim2.fromOffset(200, 14),
+    Size = UDim2.fromOffset(180, 13),
     BackgroundTransparency = 1,
     Text = "SCRIPT LIBRARY",
     TextColor3 = THEME.Faint,
-    TextSize = 9,
+    TextSize = 8,
     Font = Enum.Font.GothamBold,
     TextXAlignment = Enum.TextXAlignment.Left,
     Parent = heading,
 })
 
-local titleLabel = create("TextLabel", {
-    Position = UDim2.fromOffset(0, 20),
-    Size = UDim2.fromOffset(320, 28),
+local headingTitle = create("TextLabel", {
+    Position = UDim2.fromOffset(0, 18),
+    Size = UDim2.fromOffset(320, 27),
     BackgroundTransparency = 1,
     RichText = true,
-    Text = '<font color="#F4F2F7"><b>Browse scripts</b></font>  <font color="#6F6876">4</font>',
-    TextSize = 20,
+    Text = '<font color="#F6F3FA"><b>Browse scripts</b></font>  <font color="#67616D">4</font>',
+    TextSize = 19,
     Font = Enum.Font.Gotham,
     TextXAlignment = Enum.TextXAlignment.Left,
     Parent = heading,
 })
 
-local viewHolder = create("Frame", {
+create("TextLabel", {
     AnchorPoint = Vector2.new(1, 1),
-    Position = UDim2.new(1, 0, 1, 0),
-    Size = UDim2.fromOffset(65, 30),
+    Position = UDim2.new(1, 0, 1, -4),
+    Size = UDim2.fromOffset(150, 24),
     BackgroundTransparency = 1,
+    Text = "Recently updated",
+    TextColor3 = THEME.Faint,
+    TextSize = 9,
+    Font = Enum.Font.Gotham,
+    TextXAlignment = Enum.TextXAlignment.Right,
     Parent = heading,
 })
 
-local function viewButton(text, x)
-    local button = create("TextButton", {
-        Position = UDim2.fromOffset(x, 0),
-        Size = UDim2.fromOffset(30, 28),
-        BackgroundColor3 = THEME.AccentSoft,
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        AutoButtonColor = false,
-        Text = text,
-        TextColor3 = THEME.Faint,
-        TextSize = 14,
-        Font = Enum.Font.Code,
-        Parent = viewHolder,
-    }, { corner(5) })
-    local outline = stroke(THEME.Accent, 1, 1)
-    outline.Parent = button
-    return button, outline
-end
-
-local gridViewButton, gridViewStroke = viewButton("▦", 0)
-local listViewButton, listViewStroke = viewButton("☷", 35)
-
 local grid = create("ScrollingFrame", {
-    Name = "ScriptLibrary",
-    Position = UDim2.fromOffset(22, 210),
-    Size = UDim2.new(1, -44, 1, -226),
+    Position = UDim2.fromOffset(18, 190),
+    Size = UDim2.new(1, -36, 1, -206),
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
     ScrollBarThickness = 2,
     ScrollBarImageColor3 = THEME.Accent,
-    ScrollBarImageTransparency = 0.25,
+    ScrollBarImageTransparency = 0.35,
     AutomaticCanvasSize = Enum.AutomaticSize.Y,
     CanvasSize = UDim2.new(),
     Parent = content,
 })
 
 local gridLayout = create("UIGridLayout", {
-    CellPadding = UDim2.fromOffset(14, 14),
-    CellSize = UDim2.fromOffset(330, 248),
+    CellPadding = UDim2.fromOffset(10, 10),
+    CellSize = UDim2.fromOffset(304, 214),
     FillDirectionMaxCells = 3,
     SortOrder = Enum.SortOrder.LayoutOrder,
     Parent = grid,
@@ -643,36 +628,24 @@ create("UIPadding", {
     Parent = grid,
 })
 
-local emptyState = create("Frame", {
+local emptyLabel = create("TextLabel", {
     AnchorPoint = Vector2.new(0.5, 0.5),
-    Position = UDim2.new(0.5, 0, 0.62, 0),
-    Size = UDim2.new(1, -44, 0, 180),
-    BackgroundColor3 = THEME.Surface,
-    BackgroundTransparency = 0.35,
-    BorderSizePixel = 0,
+    Position = UDim2.new(0.5, 0, 0.60, 0),
+    Size = UDim2.fromOffset(320, 70),
+    BackgroundTransparency = 1,
+    Text = "No scripts found\nTry another search or filter.",
+    TextColor3 = THEME.Muted,
+    TextSize = 12,
+    Font = Enum.Font.GothamMedium,
+    TextWrapped = true,
     Visible = false,
     Parent = content,
-}, {
-    corner(9),
-    stroke(Color3.fromHex("#28232E"), 0.15, 1),
-})
-
-create("TextLabel", {
-    Position = UDim2.new(0, 0, 0.5, -37),
-    Size = UDim2.new(1, 0, 0, 74),
-    BackgroundTransparency = 1,
-    RichText = true,
-    Text = '<font size="26" color="#8C6BD1">⌕</font>\n<font color="#E7E2EB"><b>No scripts found</b></font>\n<font size="11" color="#69626F">Try another search or filter.</font>',
-    TextColor3 = THEME.Muted,
-    TextSize = 14,
-    Font = Enum.Font.Gotham,
-    Parent = emptyState,
 })
 
 local notificationHost = create("Frame", {
     AnchorPoint = Vector2.new(1, 1),
-    Position = UDim2.new(1, -20, 1, -20),
-    Size = UDim2.fromOffset(330, 260),
+    Position = UDim2.new(1, -18, 1, -18),
+    Size = UDim2.fromOffset(320, 250),
     BackgroundTransparency = 1,
     ZIndex = 50,
     Parent = backdrop,
@@ -685,21 +658,20 @@ local notificationHost = create("Frame", {
     }),
 })
 
-local noticeSequence = 0
+local notificationId = 0
 local function notify(title, message, kind)
-    noticeSequence = noticeSequence + 1
-    local accent = kind == "error" and THEME.Danger or THEME.AccentMuted
+    notificationId += 1
+    local accent = kind == "error" and THEME.Danger or THEME.AccentBright
     local notice = create("Frame", {
-        LayoutOrder = -noticeSequence,
-        Size = UDim2.fromOffset(320, 72),
+        LayoutOrder = -notificationId,
+        Size = UDim2.fromOffset(310, 70),
         BackgroundColor3 = THEME.SurfaceRaised,
         BorderSizePixel = 0,
-        BackgroundTransparency = 0.03,
         ZIndex = 51,
         Parent = notificationHost,
     }, {
-        corner(9),
-        stroke(kind == "error" and THEME.Danger or THEME.BorderStrong, 0.25, 1),
+        corner(10),
+        stroke(kind == "error" and THEME.Danger or THEME.BorderHover, 0.25, 1),
     })
 
     create("Frame", {
@@ -712,22 +684,21 @@ local function notify(title, message, kind)
     }, { corner(3) })
 
     create("TextLabel", {
-        Position = UDim2.fromOffset(17, 10),
-        Size = UDim2.new(1, -34, 0, 19),
+        Position = UDim2.fromOffset(16, 9),
+        Size = UDim2.new(1, -32, 0, 20),
         BackgroundTransparency = 1,
         Text = title,
         TextColor3 = THEME.TextSoft,
         TextSize = 11,
         Font = Enum.Font.GothamSemibold,
         TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
         ZIndex = 52,
         Parent = notice,
     })
 
     create("TextLabel", {
-        Position = UDim2.fromOffset(17, 31),
-        Size = UDim2.new(1, -34, 0, 28),
+        Position = UDim2.fromOffset(16, 31),
+        Size = UDim2.new(1, -32, 0, 28),
         BackgroundTransparency = 1,
         Text = message,
         TextColor3 = THEME.Muted,
@@ -740,62 +711,59 @@ local function notify(title, message, kind)
         Parent = notice,
     })
 
-    local noticeScale = create("UIScale", { Scale = 0.96, Parent = notice })
-    tween(noticeScale, 0.2, { Scale = 1 })
-
     task.delay(kind == "error" and 5.5 or 2.8, function()
         if notice.Parent then
-            tween(noticeScale, 0.16, { Scale = 0.97 })
-            task.delay(0.17, function()
-                if notice.Parent then
-                    notice:Destroy()
-                end
-            end)
+            notice:Destroy()
         end
     end)
 end
 
-local cards = {}
-local filterButtons = {}
 local currentFilter = "All Scripts"
-local currentSort = "Recently updated"
-local currentView = "Grid"
+local filterButtons = {}
+local cards = {}
 local shown = true
 local closed = false
 local toggleConnection
 
-local function favoriteGlyph(isFavorite)
-    return isFavorite and "♥" or "♡"
-end
-
 local function makeFilter(label, width)
     local button = create("TextButton", {
-        Size = UDim2.fromOffset(width, 32),
+        Size = UDim2.fromOffset(width, 30),
         BackgroundColor3 = THEME.AccentSoft,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         AutoButtonColor = false,
-        Text = label == "Favorites" and "♥  Favorites" or label,
-        TextColor3 = Color3.fromHex("#756F7C"),
-        TextSize = 10,
-        Font = Enum.Font.Gotham,
+        Text = label,
+        TextColor3 = THEME.Muted,
+        TextSize = 9,
+        Font = Enum.Font.GothamMedium,
         Parent = filterHolder,
-    }, { corner(6) })
-    local outline = stroke(THEME.BorderStrong, 1, 1)
+    }, { corner(7) })
+    local outline = stroke(THEME.BorderHover, 1, 1)
     outline.Parent = button
     filterButtons[label] = { Button = button, Stroke = outline }
     return button
 end
 
-makeFilter("All Scripts", 82)
-makeFilter("Games", 62)
-makeFilter("Universal", 76)
-makeFilter("Favorites", 90)
+makeFilter("All Scripts", 76)
+makeFilter("Games", 58)
+makeFilter("Universal", 70)
+makeFilter("Favorites", 70)
 
-local function setFavoriteVisual(data)
+local function updateFilters()
+    for label, data in pairs(filterButtons) do
+        local active = currentFilter == label
+        tween(data.Button, 0.12, {
+            BackgroundTransparency = active and 0 or 1,
+            TextColor3 = active and THEME.TextSoft or THEME.Muted,
+        })
+        data.Stroke.Transparency = active and 0.35 or 1
+    end
+end
+
+local function updateFavoriteVisual(data)
     local active = favorites[data.Entry.Id] == true
-    data.Favorite.Text = favoriteGlyph(active)
-    data.Favorite.TextColor3 = active and Color3.fromHex("#BC91EB") or Color3.fromHex("#5E5865")
+    data.Favorite.ImageColor3 = active and THEME.AccentBright or THEME.Faint
+    data.Favorite.ImageTransparency = active and 0 or 0.1
 end
 
 local function makeCard(entry, order)
@@ -807,364 +775,202 @@ local function makeCard(entry, order)
         Parent = grid,
     }, { corner(9) })
 
-    local cardStroke = stroke(THEME.Border, 0, 1)
+    local cardStroke = stroke(THEME.Border, 0.12, 1)
     cardStroke.Parent = card
     local cardScale = create("UIScale", { Scale = 1, Parent = card })
 
     local iconBox = create("Frame", {
-        Position = UDim2.fromOffset(18, 18),
+        Position = UDim2.fromOffset(14, 14),
         Size = UDim2.fromOffset(44, 44),
         BackgroundColor3 = THEME.AccentSoft,
         BorderSizePixel = 0,
         ClipsDescendants = true,
         Parent = card,
     }, {
-        corner(11),
-        stroke(Color3.fromHex("#513B78"), 0.2, 1),
+        corner(10),
+        stroke(Color3.fromHex("#4B3A63"), 0.35, 1),
     })
 
     local fallback = create("TextLabel", {
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
-        Text = scriptInitial(entry.Name),
+        Text = string.upper((entry.Name:match("%a") or "?")),
         TextColor3 = THEME.AccentBright,
-        TextSize = 16,
+        TextSize = 15,
         Font = Enum.Font.GothamBold,
         Parent = iconBox,
     })
 
-    local image = cachedAsset(entry)
+    local image = cachedCardAsset(entry)
     if image ~= "" then
+        fallback.Visible = false
         create("ImageLabel", {
             Size = UDim2.fromScale(1, 1),
             BackgroundTransparency = 1,
             Image = image,
             ScaleType = Enum.ScaleType.Crop,
-            ZIndex = 5,
+            ZIndex = 4,
             Parent = iconBox,
-        })
+        }, { corner(10) })
     end
 
-    local favorite = create("TextButton", {
+    local favorite = create("ImageButton", {
         AnchorPoint = Vector2.new(1, 0),
-        Position = UDim2.new(1, -14, 0, 13),
-        Size = UDim2.fromOffset(32, 32),
+        Position = UDim2.new(1, -12, 0, 12),
+        Size = UDim2.fromOffset(28, 28),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         AutoButtonColor = false,
-        Text = "♡",
-        TextColor3 = Color3.fromHex("#5E5865"),
-        TextSize = 22,
-        Font = Enum.Font.Gotham,
+        Image = icon("star"),
+        ImageColor3 = THEME.Faint,
+        ScaleType = Enum.ScaleType.Fit,
         Parent = card,
+    }, {
+        create("UIPadding", {
+            PaddingLeft = UDim.new(0, 5), PaddingRight = UDim.new(0, 5),
+            PaddingTop = UDim.new(0, 5), PaddingBottom = UDim.new(0, 5),
+        }),
     })
 
-    local copy = create("Frame", {
-        Position = UDim2.fromOffset(18, 78),
-        Size = UDim2.new(1, -36, 1, -138),
-        BackgroundTransparency = 1,
-        Parent = card,
-    })
-
-    local titleWidth = entry.Popular and -82 or -4
     create("TextLabel", {
-        Size = UDim2.new(1, titleWidth, 0, 21),
+        Position = UDim2.fromOffset(14, 69),
+        Size = UDim2.new(1, -28, 0, 22),
         BackgroundTransparency = 1,
         Text = entry.Name,
         TextColor3 = THEME.TextSoft,
-        TextSize = 15,
+        TextSize = 14,
         Font = Enum.Font.GothamSemibold,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextTruncate = Enum.TextTruncate.AtEnd,
-        Parent = copy,
+        Parent = card,
     })
-
-    if entry.Popular then
-        create("TextLabel", {
-            AnchorPoint = Vector2.new(1, 0),
-            Position = UDim2.new(1, 0, 0, 1),
-            Size = UDim2.fromOffset(70, 18),
-            BackgroundColor3 = Color3.fromHex("#201633"),
-            BorderSizePixel = 0,
-            Text = "✦  POPULAR",
-            TextColor3 = Color3.fromHex("#A28BCF"),
-            TextSize = 8,
-            Font = Enum.Font.GothamBold,
-            Parent = copy,
-        }, {
-            corner(4),
-            stroke(Color3.fromHex("#392855"), 0, 1),
-        })
-    end
 
     create("TextLabel", {
-        Position = UDim2.fromOffset(0, 28),
-        Size = UDim2.new(1, 0, 0, 16),
+        Position = UDim2.fromOffset(14, 91),
+        Size = UDim2.new(1, -28, 0, 17),
         BackgroundTransparency = 1,
-        RichText = true,
-        Text = string.format('<font color="#716A78">%s</font>   <font color="#433C4B">/</font>   <font color="#716A78">%s</font>', string.upper(entry.Category), entry.Game),
-        TextSize = 10,
-        Font = Enum.Font.Gotham,
+        Text = string.upper(entry.Category) .. "  /  " .. entry.Game,
+        TextColor3 = THEME.Faint,
+        TextSize = 7,
+        Font = Enum.Font.GothamMedium,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextTruncate = Enum.TextTruncate.AtEnd,
-        Parent = copy,
+        Parent = card,
     })
 
-    local descriptionLabel = create("TextLabel", {
-        Position = UDim2.fromOffset(0, 61),
-        Size = UDim2.new(1, 0, 0, 52),
+    create("TextLabel", {
+        Position = UDim2.fromOffset(14, 119),
+        Size = UDim2.new(1, -28, 0, 42),
         BackgroundTransparency = 1,
         Text = entry.Description,
         TextColor3 = THEME.Muted,
-        TextSize = 11,
+        TextSize = 9,
         Font = Enum.Font.Gotham,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Top,
-        Parent = copy,
+        Parent = card,
     })
 
     local loadButton = create("TextButton", {
         AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.new(0, 18, 1, -18),
-        Size = UDim2.new(1, -36, 0, 36),
-        BackgroundColor3 = Color3.fromHex("#24183D"),
+        Position = UDim2.new(0, 14, 1, -14),
+        Size = UDim2.new(1, -28, 0, 32),
+        BackgroundColor3 = THEME.Accent,
         BorderSizePixel = 0,
         AutoButtonColor = false,
-        Text = "▶   Load Script",
-        TextColor3 = Color3.fromHex("#D0BDF2"),
-        TextSize = 11,
-        Font = Enum.Font.GothamSemibold,
+        Text = "Load Script",
+        TextColor3 = THEME.TextSoft,
+        TextSize = 9,
+        Font = Enum.Font.GothamMedium,
         Parent = card,
     }, {
         corner(6),
-        stroke(Color3.fromHex("#513B78"), 0, 1),
+        stroke(Color3.fromHex("#574274"), 0.25, 1),
     })
 
     card.MouseEnter:Connect(function()
-        tween(card, 0.2, { BackgroundColor3 = THEME.SurfaceRaised })
-        tween(cardStroke, 0.2, { Color = THEME.BorderStrong })
-        tween(cardScale, 0.2, { Scale = 1.006 })
+        tween(card, 0.14, { BackgroundColor3 = THEME.SurfaceHover })
+        tween(cardScale, 0.14, { Scale = 1.008 })
+        cardStroke.Color = THEME.BorderHover
+        cardStroke.Transparency = 0.04
     end)
     card.MouseLeave:Connect(function()
-        tween(card, 0.2, { BackgroundColor3 = THEME.Surface })
-        tween(cardStroke, 0.2, { Color = THEME.Border })
-        tween(cardScale, 0.2, { Scale = 1 })
+        tween(card, 0.14, { BackgroundColor3 = THEME.Surface })
+        tween(cardScale, 0.14, { Scale = 1 })
+        cardStroke.Color = THEME.Border
+        cardStroke.Transparency = 0.12
     end)
 
-    bindHover(loadButton, {
-        BackgroundColor3 = Color3.fromHex("#332253"),
-        TextColor3 = THEME.Text,
-    }, {
-        BackgroundColor3 = Color3.fromHex("#24183D"),
-        TextColor3 = Color3.fromHex("#D0BDF2"),
-    }, 0.16)
-
-    favorite.MouseEnter:Connect(function()
-        tween(favorite, 0.12, { TextColor3 = Color3.fromHex("#BC91EB"), TextSize = 24 })
+    loadButton.MouseEnter:Connect(function()
+        tween(loadButton, 0.12, { BackgroundColor3 = Color3.fromHex("#463273") })
     end)
-    favorite.MouseLeave:Connect(function()
-        tween(favorite, 0.12, { TextSize = 22 })
-        setFavoriteVisual({ Entry = entry, Favorite = favorite })
+    loadButton.MouseLeave:Connect(function()
+        tween(loadButton, 0.12, { BackgroundColor3 = THEME.Accent })
     end)
 
-    local data = {
+    favorite.MouseButton1Click:Connect(function()
+        favorites[entry.Id] = not favorites[entry.Id]
+        saveFavorites()
+        updateFavoriteVisual(cards[entry.Id])
+    end)
+
+    loadButton.MouseButton1Click:Connect(function()
+        notify(entry.Name, "Loading latest build...", "info")
+        gui.Enabled = false
+        shown = false
+        task.spawn(function()
+            local ok, err = pcall(function()
+                local source = game:HttpGet(entry.Url)
+                local chunk, compileError = loadstring(source)
+                if not chunk then
+                    error(compileError or "Failed to compile script")
+                end
+                chunk()
+            end)
+            if not ok then
+                gui.Enabled = true
+                shown = true
+                notify(entry.Name .. " could not launch", compactError(err), "error")
+            end
+        end)
+    end)
+
+    cards[entry.Id] = {
         Entry = entry,
         Card = card,
-        Stroke = cardStroke,
-        Scale = cardScale,
-        Icon = iconBox,
-        Copy = copy,
-        Description = descriptionLabel,
         Favorite = favorite,
-        Load = loadButton,
     }
-    cards[entry.Id] = data
-    setFavoriteVisual(data)
+    updateFavoriteVisual(cards[entry.Id])
 end
 
-for index, entry in ipairs(SCRIPTS) do
-    makeCard(entry, index)
-end
-
-local function setViewVisuals()
-    local gridActive = currentView == "Grid"
-    tween(gridViewButton, 0.14, {
-        BackgroundTransparency = gridActive and 0 or 1,
-        TextColor3 = gridActive and THEME.AccentBright or THEME.Faint,
-    })
-    tween(listViewButton, 0.14, {
-        BackgroundTransparency = gridActive and 1 or 0,
-        TextColor3 = gridActive and THEME.Faint or THEME.AccentBright,
-    })
-    gridViewStroke.Transparency = gridActive and 0 or 1
-    listViewStroke.Transparency = gridActive and 1 or 0
-end
-
-local function applyCardMode(data)
-    local listMode = currentView == "List"
-    if listMode then
-        data.Icon.Position = UDim2.fromOffset(16, 34)
-        data.Copy.Position = UDim2.fromOffset(76, 16)
-        data.Copy.Size = UDim2.new(1, -278, 1, -32)
-        data.Description.Position = UDim2.fromOffset(0, 52)
-        data.Description.Size = UDim2.new(1, 0, 0, 28)
-        data.Description.TextSize = 9
-        data.Load.AnchorPoint = Vector2.new(1, 0.5)
-        data.Load.Position = UDim2.new(1, -16, 0.5, 0)
-        data.Load.Size = UDim2.fromOffset(150, 36)
-        data.Favorite.Position = UDim2.new(1, -178, 0, 39)
-    else
-        data.Icon.Position = UDim2.fromOffset(18, 18)
-        data.Copy.Position = UDim2.fromOffset(18, 78)
-        data.Copy.Size = UDim2.new(1, -36, 1, -138)
-        data.Description.Position = UDim2.fromOffset(0, 61)
-        data.Description.Size = UDim2.new(1, 0, 0, 52)
-        data.Description.TextSize = 11
-        data.Load.AnchorPoint = Vector2.new(0, 1)
-        data.Load.Position = UDim2.new(0, 18, 1, -18)
-        data.Load.Size = UDim2.new(1, -36, 0, 36)
-        data.Favorite.Position = UDim2.new(1, -14, 0, 13)
-    end
-end
-
-local function updateLayout()
-    local width = grid.AbsoluteSize.X
-    if width <= 0 then
-        return
-    end
-
-    if currentView == "List" then
-        gridLayout.FillDirectionMaxCells = 1
-        gridLayout.CellSize = UDim2.new(1, -4, 0, 112)
-        for _, data in pairs(cards) do
-            applyCardMode(data)
-        end
-        return
-    end
-
-    local columns = 3
-    if width < 850 then
-        columns = 2
-    end
-    if width < 570 then
-        columns = 1
-    end
-
-    local gap = 14
-    local cellWidth = math.floor((width - 4 - (gap * (columns - 1))) / columns)
-    gridLayout.FillDirectionMaxCells = columns
-    gridLayout.CellSize = UDim2.fromOffset(cellWidth, 248)
-    for _, data in pairs(cards) do
-        applyCardMode(data)
-    end
-end
-
-local function searchableText(entry)
-    return normalize(
-        entry.Name
-            .. " "
-            .. entry.Category
-            .. " "
-            .. entry.Game
-            .. " "
-            .. entry.Description
-            .. " "
-            .. table.concat(entry.Tags, " ")
-    )
-end
-
-local function updateFilterVisuals()
-    for name, data in pairs(filterButtons) do
-        local active = currentFilter == name
-        tween(data.Button, 0.14, {
-            BackgroundTransparency = active and 0 or 1,
-            TextColor3 = active and THEME.AccentBright or Color3.fromHex("#756F7C"),
-        })
-        data.Stroke.Transparency = active and 0 or 1
-    end
-end
-
-local function sortCards(entries)
-    table.sort(entries, function(a, b)
-        if currentSort == "A–Z" then
-            return string.lower(a.Name) < string.lower(b.Name)
-        elseif currentSort == "Z–A" then
-            return string.lower(a.Name) > string.lower(b.Name)
-        end
-        return a.Updated > b.Updated
-    end)
+for i, entry in ipairs(SCRIPTS) do
+    makeCard(entry, i)
 end
 
 local function refresh()
     local query = normalize(searchBox.Text)
-    local visibleEntries = {}
+    local visible = 0
 
     for _, entry in ipairs(SCRIPTS) do
-        local matchesSearch = query == "" or string.find(searchableText(entry), query, 1, true) ~= nil
-        local matchesFilter = currentFilter == "All Scripts"
-            or currentFilter == entry.Category
+        local searchable = normalize(entry.Name .. " " .. entry.Game .. " " .. entry.Category .. " " .. entry.Description .. " " .. table.concat(entry.Tags, " "))
+        local searchMatch = query == "" or string.find(searchable, query, 1, true) ~= nil
+        local filterMatch = currentFilter == "All Scripts"
+            or (currentFilter == "Games" and entry.Category == "Games")
+            or (currentFilter == "Universal" and entry.Category == "Universal")
             or (currentFilter == "Favorites" and favorites[entry.Id] == true)
 
-        cards[entry.Id].Card.Visible = matchesSearch and matchesFilter
-        if matchesSearch and matchesFilter then
-            table.insert(visibleEntries, entry)
+        local isVisible = searchMatch and filterMatch
+        cards[entry.Id].Card.Visible = isVisible
+        if isVisible then
+            visible += 1
         end
-        setFavoriteVisual(cards[entry.Id])
     end
 
-    sortCards(visibleEntries)
-    for index, entry in ipairs(visibleEntries) do
-        cards[entry.Id].Card.LayoutOrder = index
-    end
-
-    local count = #visibleEntries
-    titleLabel.Text = string.format(
-        '<font color="#F4F2F7"><b>Browse scripts</b></font>  <font color="#6F6876">%d</font>',
-        count
-    )
-    emptyState.Visible = count == 0
-    grid.Visible = count > 0
-    searchShortcut.Text = searchBox.Text == "" and "/" or "×"
-    updateFilterVisuals()
-end
-
-local function runScript(entry, data)
-    if data.Load:GetAttribute("Loading") then
-        return
-    end
-
-    data.Load:SetAttribute("Loading", true)
-    local oldText = data.Load.Text
-    data.Load.Text = "•••   Loading"
-    notify(entry.Name, "Fetching the latest build...", "info")
-
-    task.spawn(function()
-        local ok, result = pcall(function()
-            local source = game:HttpGet(entry.Url)
-            if type(source) ~= "string" or source == "" then
-                error("The script returned no source.")
-            end
-            local chunk, compileError = loadstring(source)
-            if not chunk then
-                error(compileError or "The script could not be compiled.")
-            end
-            return chunk()
-        end)
-
-        task.defer(function()
-            if not data.Load.Parent then
-                return
-            end
-            data.Load:SetAttribute("Loading", false)
-            data.Load.Text = oldText
-            if ok then
-                notify(entry.Name, "Loaded successfully.", "success")
-            else
-                notify(entry.Name .. " could not launch", compactError(result), "error")
-            end
-        end)
-    end)
+    countLabel.Text = tostring(visible) .. (visible == 1 and " script" or " scripts")
+    headingTitle.Text = '<font color="#F6F3FA"><b>Browse scripts</b></font>  <font color="#67616D">' .. tostring(visible) .. '</font>'
+    emptyLabel.Visible = visible == 0
+    updateFilters()
 end
 
 for label, data in pairs(filterButtons) do
@@ -1174,69 +980,27 @@ for label, data in pairs(filterButtons) do
     end)
 end
 
-for _, data in pairs(cards) do
-    data.Favorite.MouseButton1Click:Connect(function()
-        favorites[data.Entry.Id] = not favorites[data.Entry.Id]
-        saveFavorites()
-        setFavoriteVisual(data)
-        if currentFilter == "Favorites" then
-            refresh()
-        end
-    end)
-    data.Load.MouseButton1Click:Connect(function()
-        runScript(data.Entry, data)
-    end)
-end
-
-local sortModes = { "Recently updated", "A–Z", "Z–A" }
-local sortIndex = 1
-sortButton.MouseButton1Click:Connect(function()
-    sortIndex = (sortIndex % #sortModes) + 1
-    currentSort = sortModes[sortIndex]
-    sortButton.Text = "≡   " .. currentSort .. "   ⌄"
-    refresh()
-end)
-
-gridViewButton.MouseButton1Click:Connect(function()
-    currentView = "Grid"
-    setViewVisuals()
-    updateLayout()
-end)
-
-listViewButton.MouseButton1Click:Connect(function()
-    currentView = "List"
-    setViewVisuals()
-    updateLayout()
-end)
-
 searchBox:GetPropertyChangedSignal("Text"):Connect(refresh)
-searchShortcut.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 and searchBox.Text ~= "" then
-        searchBox.Text = ""
-        searchBox:CaptureFocus()
-    end
+searchShortcut.MouseButton1Click:Connect(function()
+    searchBox:CaptureFocus()
 end)
-
-shortcutButton.MouseButton1Click:Connect(function()
+shortcut.MouseButton1Click:Connect(function()
     searchBox:CaptureFocus()
 end)
 
-local function setShown(value)
-    shown = value
-    if value then
-        gui.Enabled = true
-        local targetScale = windowScale:GetAttribute("TargetScale") or 1
-        windowScale.Scale = targetScale * 0.97
-        tween(windowScale, 0.2, { Scale = targetScale })
-    else
-        tween(windowScale, 0.16, { Scale = (windowScale:GetAttribute("TargetScale") or 1) * 0.98 })
-        task.delay(0.17, function()
-            if not shown and not closed then
-                gui.Enabled = false
-            end
-        end)
+local function updateGrid()
+    local width = grid.AbsoluteSize.X
+    if width <= 0 then
+        return
     end
+    local columns = width >= 890 and 3 or (width >= 590 and 2 or 1)
+    local gap = 10
+    local usable = width - 4 - gap * (columns - 1)
+    gridLayout.FillDirectionMaxCells = columns
+    gridLayout.CellSize = UDim2.fromOffset(math.floor(usable / columns), 214)
 end
+
+grid:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateGrid)
 
 local function updateScale()
     local camera = Workspace.CurrentCamera
@@ -1244,40 +1008,54 @@ local function updateScale()
         return
     end
     local viewport = camera.ViewportSize
-    local target = math.min((viewport.X - 28) / 1080, (viewport.Y - 28) / 680, 1)
-    target = math.max(target, 0.5)
-    windowScale:SetAttribute("TargetScale", target)
-    if shown then
-        windowScale.Scale = target
-    end
+    local sx = math.clamp((viewport.X - 48) / 980, 0.66, 1)
+    local sy = math.clamp((viewport.Y - 48) / 610, 0.66, 1)
+    mainScale.Scale = math.min(sx, sy)
 end
 
-local cameraConnection
-local function bindCamera()
-    if cameraConnection then
-        cameraConnection:Disconnect()
-    end
-    local camera = Workspace.CurrentCamera
-    if camera then
-        cameraConnection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
-    end
-    updateScale()
+if Workspace.CurrentCamera then
+    Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
+end
+updateScale()
+task.defer(updateGrid)
+
+local function setShown(value)
+    shown = value
+    gui.Enabled = value
 end
 
-Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(bindCamera)
-bindCamera()
+minimizeButton.MouseButton1Click:Connect(function()
+    setShown(false)
+end)
 
-grid:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateLayout)
-task.defer(updateLayout)
+closeButton.MouseButton1Click:Connect(function()
+    closed = true
+    if toggleConnection then
+        toggleConnection:Disconnect()
+    end
+    gui:Destroy()
+end)
+
+toggleConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed or closed then
+        return
+    end
+    if input.KeyCode == Enum.KeyCode.RightShift then
+        setShown(not shown)
+    elseif input.KeyCode == Enum.KeyCode.K and (UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)) then
+        if not shown then
+            setShown(true)
+        end
+        searchBox:CaptureFocus()
+    end
+end)
 
 local dragging = false
 local dragStart
 local startPosition
 
 topbar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch
-    then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
         dragStart = input.Position
         startPosition = main.Position
@@ -1285,10 +1063,7 @@ topbar.InputBegan:Connect(function(input)
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if dragging
-        and (input.UserInputType == Enum.UserInputType.MouseMovement
-            or input.UserInputType == Enum.UserInputType.Touch)
-    then
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
         local delta = input.Position - dragStart
         main.Position = UDim2.new(
             startPosition.X.Scale,
@@ -1300,62 +1075,9 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-        or input.UserInputType == Enum.UserInputType.Touch
-    then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = false
     end
 end)
 
-minimizeButton.MouseButton1Click:Connect(function()
-    setShown(false)
-end)
-
-local function closeHub()
-    if closed then
-        return
-    end
-    closed = true
-    if toggleConnection then
-        toggleConnection:Disconnect()
-    end
-    if cameraConnection then
-        cameraConnection:Disconnect()
-    end
-    tween(windowScale, 0.16, { Scale = (windowScale:GetAttribute("TargetScale") or 1) * 0.96 })
-    task.delay(0.17, function()
-        if gui.Parent then
-            gui:Destroy()
-        end
-    end)
-end
-
-closeButton.MouseButton1Click:Connect(closeHub)
-
-toggleConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed or closed then
-        return
-    end
-    if input.KeyCode == Enum.KeyCode.RightShift then
-        setShown(not shown)
-    elseif input.KeyCode == Enum.KeyCode.K
-        and (UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
-            or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
-            or UserInputService:IsKeyDown(Enum.KeyCode.LeftMeta)
-            or UserInputService:IsKeyDown(Enum.KeyCode.RightMeta))
-    then
-        if not shown then
-            setShown(true)
-        end
-        searchBox:CaptureFocus()
-    elseif input.KeyCode == Enum.KeyCode.Slash and shown then
-        searchBox:CaptureFocus()
-    end
-end)
-
 refresh()
-setViewVisuals()
-updateScale()
-local initialScale = windowScale:GetAttribute("TargetScale") or 1
-windowScale.Scale = initialScale * 0.97
-tween(windowScale, 0.24, { Scale = initialScale })
