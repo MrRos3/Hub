@@ -1,0 +1,186 @@
+    clickLayer.MouseButton1Click:Connect(function()
+        openDetails(entry)
+    end)
+
+    clickLayer.MouseEnter:Connect(function()
+        tween(card, 0.18, { BackgroundColor3 = THEME.SurfaceHover, Position = UDim2.fromOffset(0, -1) })
+        tween(cardStroke, 0.18, { Color = THEME.Accent, Transparency = 0 })
+        tween(image, 0.18, { ImageColor3 = Color3.fromRGB(220, 220, 226) })
+        tween(title, 0.18, { TextColor3 = THEME.Text })
+    end)
+    clickLayer.MouseLeave:Connect(function()
+        tween(card, 0.18, { BackgroundColor3 = THEME.Surface, Position = UDim2.fromOffset(0, 0) })
+        tween(cardStroke, 0.18, { Color = Color3.fromRGB(34, 34, 39), Transparency = 0.08 })
+        tween(image, 0.18, { ImageColor3 = Color3.fromRGB(190, 190, 198) })
+        tween(title, 0.18, { TextColor3 = Color3.fromHex("#EEEEF1") })
+    end)
+
+    return root
+end
+
+local function createListCard(entry, order)
+    local root = create("Frame", {
+        Name = entry.Id,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        LayoutOrder = order,
+    })
+
+    local card = create("Frame", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = THEME.Surface,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Parent = root,
+    }, { corner(11), stroke(Color3.fromRGB(34, 34, 39), 0.08, 1) })
+    local cardStroke = card:FindFirstChildOfClass("UIStroke")
+
+    local image = create("ImageLabel", {
+        Size = UDim2.fromOffset(122, 92),
+        BackgroundColor3 = THEME.Surface2,
+        BorderSizePixel = 0,
+        Image = "",
+        ImageTransparency = 1,
+        ImageColor3 = Color3.fromRGB(190, 190, 198),
+        ScaleType = Enum.ScaleType.Crop,
+        Parent = card,
+    })
+    setRemoteImage(image, entry.ImageUrl, entry.ImageCache)
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(136, 12),
+        Size = UDim2.fromOffset(180, 11),
+        BackgroundTransparency = 1,
+        Text = entry.Category,
+        TextColor3 = Color3.fromHex("#8870B5"),
+        TextSize = 8,
+        FontFace = font(Enum.FontWeight.Bold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = card,
+    })
+
+    local title = create("TextLabel", {
+        Position = UDim2.fromOffset(136, 28),
+        Size = UDim2.new(1, -340, 0, 18),
+        BackgroundTransparency = 1,
+        Text = entry.Name,
+        TextColor3 = Color3.fromHex("#EEEEF1"),
+        TextSize = 13,
+        FontFace = font(Enum.FontWeight.SemiBold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = card,
+    })
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(136, 47),
+        Size = UDim2.new(1, -340, 0, 15),
+        BackgroundTransparency = 1,
+        Text = entry.Game,
+        TextColor3 = Color3.fromHex("#6D6D77"),
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Regular),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        Parent = card,
+    })
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(136, 65),
+        Size = UDim2.new(1, -345, 0, 16),
+        BackgroundTransparency = 1,
+        Text = entry.Description,
+        TextColor3 = Color3.fromHex("#92929B"),
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Regular),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        Parent = card,
+    })
+
+    makeHeartButton(card, entry, UDim2.new(1, -105, 0, 12), 8)
+    makeLoadButton(card, entry, UDim2.fromOffset(82, 29), UDim2.new(1, -95, 0.5, -14), 8)
+
+    local clickLayer = create("TextButton", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Text = "",
+        AutoButtonColor = false,
+        ZIndex = 3,
+        Parent = card,
+    })
+    clickLayer.MouseButton1Click:Connect(function()
+        openDetails(entry)
+    end)
+    clickLayer.MouseEnter:Connect(function()
+        tween(card, 0.18, { BackgroundColor3 = THEME.SurfaceHover, Position = UDim2.fromOffset(0, -1) })
+        tween(cardStroke, 0.18, { Color = THEME.Accent, Transparency = 0 })
+        tween(image, 0.18, { ImageColor3 = Color3.fromRGB(220, 220, 226) })
+        tween(title, 0.18, { TextColor3 = THEME.Text })
+    end)
+    clickLayer.MouseLeave:Connect(function()
+        tween(card, 0.18, { BackgroundColor3 = THEME.Surface, Position = UDim2.fromOffset(0, 0) })
+        tween(cardStroke, 0.18, { Color = Color3.fromRGB(34, 34, 39), Transparency = 0.08 })
+        tween(image, 0.18, { ImageColor3 = Color3.fromRGB(190, 190, 198) })
+        tween(title, 0.18, { TextColor3 = Color3.fromHex("#EEEEF1") })
+    end)
+
+    return root
+end
+
+local function createEmptyState()
+    local wrap = create("Frame", {
+        Name = "Empty",
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        LayoutOrder = 1,
+    })
+    create("TextLabel", {
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.new(0.5, 0, 0, 70),
+        Size = UDim2.fromOffset(38, 38),
+        BackgroundTransparency = 1,
+        Text = currentFilter == "Favorites" and "♡" or "⌕",
+        TextColor3 = Color3.fromHex("#5B4A77"),
+        TextSize = 25,
+        FontFace = font(Enum.FontWeight.Medium),
+        Parent = wrap,
+    })
+    create("TextLabel", {
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.new(0.5, 0, 0, 111),
+        Size = UDim2.fromOffset(260, 18),
+        BackgroundTransparency = 1,
+        Text = currentFilter == "Favorites" and "No favorites yet" or "No scripts found",
+        TextColor3 = THEME.TextSoft,
+        TextSize = 12,
+        FontFace = font(Enum.FontWeight.SemiBold),
+        Parent = wrap,
+    })
+    create("TextLabel", {
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.new(0.5, 0, 0, 132),
+        Size = UDim2.fromOffset(320, 18),
+        BackgroundTransparency = 1,
+        Text = currentFilter == "Favorites" and "Favorite scripts to keep them close." or "Try another game, script, or category.",
+        TextColor3 = THEME.Muted,
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Regular),
+        Parent = wrap,
+    })
+    return wrap
+end
+
+renderContent = function()
+    clearCards()
+    styleFilterButtons()
+    styleViewButtons()
+
+    if currentView == "grid" then
+        layout.CellSize = UDim2.fromOffset(250, 168)
+        layout.CellPadding = UDim2.fromOffset(12, 12)
+        layout.FillDirectionMaxCells = 3
+    else
+        layout.CellSize = UDim2.new(1, -2, 0, 92)
+        layout.CellPadding = UDim2.fromOffset(0, 10)
+        layout.FillDirectionMaxCells = 1
