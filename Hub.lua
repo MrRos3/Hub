@@ -1,4 +1,4 @@
--- Velora Hub v6
+-- Velora Hub v7
 -- VantaUI-inspired searchable script library
 -- Real scripts only. Premium notification stack and launch feedback.
 
@@ -161,6 +161,13 @@ local SCRIPTS = {
         Description = "Salty Shadow Network v1.3.7",
         Tags = { "shadow network", "items", "esp", "automation" },
         Url = "https://raw.githubusercontent.com/MrRos3/Hub/main/scripts/ShadowNetwork.lua",
+    },
+    {
+        Id = "salty-mm2",
+        Name = "MM2",
+        Description = "Salty MM2 v1.1 • Performance Edition",
+        Tags = { "murder mystery 2", "roles", "esp", "coins", "sheriff" },
+        Url = "https://raw.githubusercontent.com/MrRos3/Hub/main/scripts/MM2.lua",
     },
 }
 
