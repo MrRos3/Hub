@@ -1,0 +1,416 @@
+                Runtime.DangerInside =
+                    danger
+
+            else
+
+                Runtime.DangerInside =
+                    false
+            end
+        else
+
+            Runtime.DangerInside =
+                false
+        end
+
+
+        task.wait(
+            Settings.WarningInterval
+        )
+    end
+end)
+
+
+--==============================================================
+-- WEAPON HELPERS
+--==============================================================
+
+local function HasTag(
+    object,
+    tag
+)
+
+    if not object then
+        return false
+    end
+
+
+    local ok,
+        result =
+        pcall(function()
+
+            return CollectionService:
+                HasTag(
+                    object,
+                    tag
+                )
+
+        end)
+
+
+    return ok
+        and result
+end
+
+
+local function IsGun(
+    object
+)
+
+    if not object
+        or not object:IsA(
+            "Tool"
+        )
+    then
+
+        return false
+    end
+
+
+    return
+        HasTag(
+            object,
+            "Weapon_Gun"
+        )
+
+        or object:GetAttribute(
+            "IsGun"
+        ) == true
+
+        or object:GetAttribute(
+            "ItemType"
+        ) == "Gun"
+
+        or object.Name == "Gun"
+end
+
+
+local function IsKnife(
+    object
+)
+
+    if not object
+        or not object:IsA(
+            "Tool"
+        )
+    then
+
+        return false
+    end
+
+
+    return
+        HasTag(
+            object,
+            "Weapon_Knife"
+        )
+
+        or object:GetAttribute(
+            "IsKnife"
+        ) == true
+
+        or object:GetAttribute(
+            "ItemType"
+        ) == "Knife"
+
+        or object.Name == "Knife"
+end
+
+
+local function FindWeapon(
+    kind,
+    equippedOnly
+)
+
+    local checker =
+        kind == "Knife"
+        and IsKnife
+        or IsGun
+
+
+    local character =
+        LocalPlayer.Character
+
+
+    if character then
+
+        for _,
+            object
+        in ipairs(
+            character:
+            GetChildren()
+        )
+        do
+
+            if checker(object) then
+                return object, true
+            end
+        end
+    end
+
+
+    if equippedOnly then
+        return nil
+    end
+
+
+    local backpack =
+        LocalPlayer:
+        FindFirstChild(
+            "Backpack"
+        )
+
+
+    if backpack then
+
+        for _,
+            object
+        in ipairs(
+            backpack:
+            GetChildren()
+        )
+        do
+
+            if checker(object) then
+                return object, false
+            end
+        end
+    end
+
+
+    return nil
+end
+
+
+local function HasGun()
+
+    return FindWeapon(
+        "Gun",
+        false
+    ) ~= nil
+end
+
+
+local function EquipWeapon(
+    kind
+)
+
+    local tool,
+        equipped =
+        FindWeapon(
+            kind,
+            false
+        )
+
+
+    if not tool then
+        return false
+    end
+
+
+    if equipped then
+        return true
+    end
+
+
+    local _,
+        humanoid =
+        GetCharacter()
+
+
+    if not humanoid then
+        return false
+    end
+
+
+    return pcall(function()
+
+        humanoid:
+        EquipTool(
+            tool
+        )
+
+    end)
+end
+
+
+--==============================================================
+-- AUTO EQUIP
+--==============================================================
+
+task.spawn(function()
+
+    while Runtime.Running do
+
+        if Settings.AutoEquipGun
+            and HasGun()
+        then
+
+            local role =
+                Runtime.LocalRole
+
+
+            if role == "Sheriff"
+                or role == "Hero"
+            then
+
+                local _,
+                    equipped =
+                    FindWeapon(
+                        "Gun",
+                        false
+                    )
+
+
+                if not equipped then
+
+                    EquipWeapon(
+                        "Gun"
+                    )
+                end
+            end
+        end
+
+
+        task.wait(
+            0.75
+        )
+    end
+end)
+
+
+--==============================================================
+-- LINE OF SIGHT
+--==============================================================
+
+local function HasLineOfSight(
+    player
+)
+
+    local character,
+        _,
+        root =
+        GetCharacter()
+
+
+    local target =
+        TargetPart(
+            player
+        )
+
+
+    if not character
+        or not root
+        or not target
+        or not player.Character
+    then
+
+        return false
+    end
+
+
+    local attachment =
+        root:
+        FindFirstChild(
+            "GunRaycastAttachment"
+        )
+
+
+    local origin =
+        attachment
+        and attachment.WorldPosition
+        or root.Position
+
+
+    local params =
+        RaycastParams.new()
+
+
+    params.FilterType =
+        Enum.RaycastFilterType.Exclude
+
+
+    params.FilterDescendantsInstances =
+        {
+            character
+        }
+
+
+    local result =
+        Workspace:
+        Raycast(
+
+            origin,
+
+            target.Position
+            - origin,
+
+            params
+        )
+
+
+    return not result
+        or result.Instance:
+            IsDescendantOf(
+                player.Character
+            )
+end
+
+
+--==============================================================
+-- SHOOT
+--==============================================================
+
+local function ShootMurderer(
+    notify
+)
+
+    local murderer =
+        Runtime.Murderer
+
+
+    if not murderer
+        or not IsAlive(
+            murderer
+        )
+    then
+
+        Runtime.LastShotStatus =
+            "No Murderer"
+
+        return false
+    end
+
+
+    if murderer == LocalPlayer then
+
+        Runtime.LastShotStatus =
+            "Local player is Murderer"
+
+        return false
+    end
+
+
+    if not HasGun() then
+
+        Runtime.LastShotStatus =
+            "No gun"
+
+        if notify then
+
+            Notify(
+                "Gun",
+                "No gun available.",
+                "circle-alert"
+            )
+        end
+
+        return false
+    end
+
+
+    EquipWeapon(
+        "Gun"
+    )
+
+
+    task.wait(
