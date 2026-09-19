@@ -1,0 +1,319 @@
+        ------------------------------------------------
+
+
+        if untilHit
+
+            > CONFIG.LookAhead
+
+        then
+
+            break
+
+        end
+
+
+        checked += 1
+
+
+        local quality =
+
+            ChooseQuality(note)
+
+
+        ------------------------------------------------
+
+        -- Intentional miss.
+
+        ------------------------------------------------
+
+
+        if quality == "miss" then
+
+            continue
+
+        end
+
+
+        local targetTime =
+
+            note.hitTime
+
+            + GetTargetOffset(
+
+                quality
+
+            )
+
+            + CONFIG.TimingOffset
+
+
+        if now < targetTime then
+
+            continue
+
+        end
+
+
+        ------------------------------------------------
+
+        -- Already too late.
+
+        ------------------------------------------------
+
+
+        if now
+
+            > note.hitTime
+
+                + GoodWindow
+
+                - 0.005
+
+        then
+
+            continue
+
+        end
+
+
+        ------------------------------------------------
+
+        -- HIT BUDGET
+
+        --
+
+        -- This is what removes the huge first-note
+
+        -- frame spike.
+
+        ------------------------------------------------
+
+
+        if hitsThisHeartbeat
+
+            >= CONFIG.HitBudgetPerHeartbeat
+
+        then
+
+            break
+
+        end
+
+
+        local ok, err =
+
+            pcall(
+
+                TryHit,
+
+                note.lane
+
+            )
+
+
+        if ok then
+
+            hitsThisHeartbeat += 1
+
+
+            State.AutoHits += 1
+
+
+            if note.hit
+
+                and index
+
+                    == State.Cursor
+
+            then
+
+                State.Cursor =
+
+                    index + 1
+
+            end
+
+        else
+
+            State.Engine =
+
+                "tryHit error: "
+
+                .. tostring(err)
+
+
+            ------------------------------------------------
+
+            -- Don't repeatedly throw the same failing call
+
+            -- throughout one Heartbeat.
+
+            ------------------------------------------------
+
+
+            break
+
+        end
+
+    end
+
+end
+
+
+--==================================================
+
+-- ONE HEARTBEAT
+
+--==================================================
+
+
+Runtime:Connect(
+
+    RunService.Heartbeat,
+
+    AutoPlayerStep
+
+)
+
+
+--==================================================
+
+-- CHEAPER STATUS UI
+
+--==================================================
+
+
+task.spawn(function()
+
+    while Runtime.Alive do
+
+        task.wait(
+
+            CONFIG.StatusInterval
+
+        )
+
+
+        if not Runtime.Alive then
+
+            break
+
+        end
+
+
+        local pending = 0
+
+        local hit = 0
+
+        local missed = 0
+
+
+        local noteCount =
+
+            Notes
+
+            and #Notes
+
+            or 0
+
+
+        ------------------------------------------------
+
+        -- This is now only once per second rather than
+
+        -- hammering the chart + VantaUI every 0.35 sec.
+
+        ------------------------------------------------
+
+
+        if Notes then
+
+            for _, note in ipairs(Notes) do
+
+                if LooksLikeNote(note) then
+
+                    if note.hit then
+
+                        hit += 1
+
+
+                    elseif note.missed then
+
+                        missed += 1
+
+
+                    else
+
+                        pending += 1
+
+                    end
+
+                end
+
+            end
+
+        end
+
+
+        local battleText =
+
+            State.InBattle
+
+            and "Active"
+
+            or "Idle"
+
+
+        local text =
+
+            "Engine: "
+
+            .. tostring(
+
+                State.Engine
+
+            )
+
+            .. "\nBattle: "
+
+            .. battleText
+
+            .. "\nLive notes: "
+
+            .. tostring(
+
+                noteCount
+
+            )
+
+            .. "\nPending: "
+
+            .. tostring(
+
+                pending
+
+            )
+
+            .. "\nHit: "
+
+            .. tostring(
+
+                hit
+
+            )
+
+            .. "\nMissed: "
+
+            .. tostring(
+
+                missed
+
+            )
+
+            .. "\nAuto calls: "
+
+            .. tostring(
+
+                State.AutoHits
+
+            )
