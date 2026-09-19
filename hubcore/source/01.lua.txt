@@ -1,0 +1,186 @@
+-- Salty Hub
+-- Roblox/Luau recreation of the approved v0 Salty Hub UI.
+-- Compact 820x540 script library with search, filters, favorites, sorting,
+-- grid/list views, details, load states, persistent preferences and toasts.
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local Lighting = game:GetService("Lighting")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+
+local THEME = {
+    Stage = Color3.fromHex("#060606"),
+    Window = Color3.fromHex("#0A0A0C"),
+    Surface = Color3.fromHex("#0E0E11"),
+    Surface2 = Color3.fromHex("#121216"),
+    SurfaceHover = Color3.fromHex("#111116"),
+    Accent = Color3.fromHex("#36255C"),
+    AccentHover = Color3.fromHex("#4A337D"),
+    AccentSoft = Color3.fromHex("#2A1D49"),
+    AccentBorder = Color3.fromHex("#473270"),
+    AccentBright = Color3.fromHex("#B08BE3"),
+    Text = Color3.fromHex("#F5F5F7"),
+    TextSoft = Color3.fromHex("#D4D4D8"),
+    Muted = Color3.fromHex("#85858F"),
+    Muted2 = Color3.fromHex("#686871"),
+    Success = Color3.fromHex("#72AB8C"),
+    Danger = Color3.fromHex("#D66978"),
+    Border = Color3.fromRGB(31, 31, 36),
+}
+
+local FONT_ID = "rbxassetid://12187365364"
+local TOGGLE_KEY = Enum.KeyCode.RightShift
+local BASE_RAW = "https://raw.githubusercontent.com/MrRos3/Hub/main/"
+local CACHE_ROOT = "SaltyHub"
+local SETTINGS_PATH = CACHE_ROOT .. "/settings.json"
+
+local function font(weight)
+    local ok, face = pcall(function()
+        return Font.new(FONT_ID, weight or Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+    end)
+    if ok and face then
+        return face
+    end
+    return Font.fromEnum(Enum.Font.Gotham)
+end
+
+local function create(className, props, children)
+    local object = Instance.new(className)
+    for key, value in pairs(props or {}) do
+        object[key] = value
+    end
+    for _, child in ipairs(children or {}) do
+        child.Parent = object
+    end
+    return object
+end
+
+local function corner(radius)
+    return create("UICorner", { CornerRadius = UDim.new(0, radius) })
+end
+
+local function stroke(color, transparency, thickness)
+    return create("UIStroke", {
+        Color = color or THEME.Border,
+        Transparency = transparency or 0,
+        Thickness = thickness or 1,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    })
+end
+
+local function tween(object, duration, props, style, direction)
+    local anim = TweenService:Create(
+        object,
+        TweenInfo.new(
+            duration or 0.2,
+            style or Enum.EasingStyle.Quint,
+            direction or Enum.EasingDirection.Out
+        ),
+        props
+    )
+    anim:Play()
+    return anim
+end
+
+local function normalize(value)
+    return string.lower(tostring(value or ""))
+end
+
+local function contains(value, query)
+    return query == "" or string.find(normalize(value), query, 1, true) ~= nil
+end
+
+local function truncate(value, maxLength)
+    value = tostring(value or "")
+    if #value <= maxLength then
+        return value
+    end
+    return value:sub(1, math.max(1, maxLength - 1)) .. "…"
+end
+
+-- Optional executor-backed local asset cache. The UI still works when unavailable.
+local customAsset = getcustomasset or getsynasset
+local canCache = type(writefile) == "function"
+    and type(isfile) == "function"
+    and type(makefolder) == "function"
+    and type(isfolder) == "function"
+    and type(customAsset) == "function"
+
+local function ensureFolder(path)
+    if not canCache then
+        return false
+    end
+    if isfolder(path) then
+        return true
+    end
+    return pcall(makefolder, path)
+end
+
+if canCache then
+    ensureFolder(CACHE_ROOT)
+    ensureFolder(CACHE_ROOT .. "/assets")
+end
+
+local function cacheRemoteAsset(url, path)
+    if not canCache or not url or url == "" then
+        return ""
+    end
+    if not isfile(path) then
+        local ok, bytes = pcall(function()
+            return game:HttpGet(url)
+        end)
+        if ok and type(bytes) == "string" and #bytes > 100 then
+            pcall(writefile, path, bytes)
+        end
+    end
+    if isfile(path) then
+        local ok, asset = pcall(customAsset, path)
+        if ok and type(asset) == "string" then
+            return asset
+        end
+    end
+    return ""
+end
+
+local function setRemoteImage(imageLabel, url, cacheName)
+    if not imageLabel or not imageLabel.Parent or not url or url == "" then
+        return
+    end
+    task.spawn(function()
+        local asset = cacheRemoteAsset(url, CACHE_ROOT .. "/assets/" .. cacheName)
+        if asset ~= "" and imageLabel and imageLabel.Parent then
+            imageLabel.Image = asset
+            imageLabel.ImageTransparency = 0
+        end
+    end)
+end
+
+local SCRIPTS = {
+    {
+        Id = "velora-piano",
+        Name = "Velora Piano",
+        Game = "Multiple games",
+        Category = "UNIVERSAL",
+        Description = "Premium piano player and song workstation.",
+        Tags = { "piano", "music", "songs", "midi", "universal" },
+        Features = { "Song library", "MIDI playback", "Auto piano" },
+        Url = "https://raw.githubusercontent.com/MrRos3/Velora/main/loader.lua",
+        ImageUrl = BASE_RAW .. "assets/cards/velora-piano.jpg?v=salty-v0",
+        ImageCache = "card_velora-piano_v0.jpg",
+        Updated = "Today",
+        UpdatedAt = 40,
+        UsageCount = 136,
+    },
+    {
+        Id = "shadow-network",
+        Name = "Shadow Network",
+        Game = "Shadow Network",
+        Category = "GAME SCRIPT",
+        Description = "Item, ESP and automation toolkit.",
+        Tags = { "items", "esp", "automation", "shadow network" },
