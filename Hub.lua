@@ -1,5 +1,6 @@
--- Velora Hub v4
+-- Velora Hub v5
 -- VantaUI-inspired searchable script library
+-- Showcase content removed. Real scripts only.
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -142,25 +143,15 @@ end
 
 local brandAsset = cacheRemoteAsset(BRAND_URL, "VeloraHub/assets/vanta-brand-v2.jpeg", "")
 
+-- Real script library. Add future scripts here.
 local SCRIPTS = {
-    { Id = "ghost", Name = "Ghost Driver", Tags = { "vehicle", "automation" }, Demo = true },
-    { Id = "blox", Name = "Blox Fruits", Tags = { "farm" }, Demo = true },
-    { Id = "pet", Name = "Pet Simulator X", Tags = { "utility" }, Demo = true },
-    { Id = "blade", Name = "Blade Ball", Tags = { "combat" }, Demo = true },
-    { Id = "arsenal", Name = "Arsenal", Tags = { "combat" }, Demo = true },
-    { Id = "hood", Name = "Da Hood", Tags = {}, Demo = true },
-    { Id = "doors", Name = "Doors", Tags = { "esp" }, Demo = true },
-    { Id = "mm2", Name = "MM2", Tags = { "combat" }, Demo = true },
-    { Id = "soul", Name = "Type Soul", Tags = {}, Demo = true },
-    { Id = "jail", Name = "Jailbreak", Tags = { "vehicle" }, Demo = true },
-    { Id = "universal", Name = "Salty Universal", Tags = { "utility" }, Demo = true },
-    { Id = "ui", Name = "Salty UI Library", Tags = { "library" }, Demo = true },
-    { Id = "spy", Name = "Remote Spy", Tags = { "remote" }, Demo = true },
-    { Id = "fe", Name = "FE Scripts", Tags = {}, Demo = true },
-    { Id = "tp", Name = "Teleport Hub", Tags = { "teleport" }, Demo = true },
-    { Id = "utils", Name = "Game Utilities", Tags = { "utility" }, Demo = true },
-    { Id = "farm", Name = "Auto Farm", Tags = { "automation" }, Demo = true },
-    { Id = "speed", Name = "Speed Hub", Tags = { "movement" }, Demo = true },
+    {
+        Id = "velora-piano",
+        Name = "Velora Piano",
+        Description = "Premium piano player and song workstation",
+        Tags = { "piano", "music", "songs", "workstation" },
+        Url = "https://raw.githubusercontent.com/MrRos3/Velora/main/loader.lua",
+    },
 }
 
 local function getGuiParent()
@@ -258,7 +249,6 @@ create("Frame", {
     Parent = top,
 })
 
--- Brand treatment follows the same compact image + name layout used by VantaUI.
 local brand = create("Frame", {
     Name = "Brand",
     Position = UDim2.fromOffset(14, 9),
@@ -374,7 +364,6 @@ local clearSearch = create("ImageButton", {
     BackgroundTransparency = 1,
     Image = icon("close"),
     ImageColor3 = THEME.Muted,
-    ImageRectSize = Vector2.new(0, 0),
     ScaleType = Enum.ScaleType.Fit,
     Visible = false,
     AutoButtonColor = false,
@@ -398,19 +387,16 @@ local function windowButton(image, x)
         Image = icon(image),
         ImageColor3 = THEME.Muted,
         ScaleType = Enum.ScaleType.Fit,
-        ImageRectSize = Vector2.new(0, 0),
         AutoButtonColor = false,
         Parent = controls,
     }, {
         corner(8),
-    })
-
-    create("UIPadding", {
-        PaddingLeft = UDim.new(0, 8),
-        PaddingRight = UDim.new(0, 8),
-        PaddingTop = UDim.new(0, 7),
-        PaddingBottom = UDim.new(0, 7),
-        Parent = button,
+        create("UIPadding", {
+            PaddingLeft = UDim.new(0, 8),
+            PaddingRight = UDim.new(0, 8),
+            PaddingTop = UDim.new(0, 7),
+            PaddingBottom = UDim.new(0, 7),
+        }),
     })
 
     button.MouseEnter:Connect(function()
@@ -451,7 +437,7 @@ local countLabel = create("TextLabel", {
     Size = UDim2.fromOffset(104, 28),
     BackgroundColor3 = THEME.Element,
     BackgroundTransparency = 0.14,
-    Text = "0 scripts",
+    Text = "1 script",
     TextColor3 = THEME.Muted,
     TextSize = 9,
     FontFace = font(Enum.FontWeight.Medium),
@@ -477,8 +463,8 @@ local grid = create("ScrollingFrame", {
 
 local gridLayout = create("UIGridLayout", {
     CellPadding = UDim2.fromOffset(9, 9),
-    CellSize = UDim2.fromOffset(280, 92),
-    FillDirectionMaxCells = 4,
+    CellSize = UDim2.fromOffset(360, 104),
+    FillDirectionMaxCells = 3,
     SortOrder = Enum.SortOrder.LayoutOrder,
     Parent = grid,
 })
@@ -508,6 +494,9 @@ local cards = {}
 local favoriteButtons = {}
 local currentFilter = "All"
 local selectedId = nil
+local shown = true
+local closed = false
+local toggleConnection
 
 local function scriptInitial(name)
     local first = string.match(tostring(name or ""), "%a")
@@ -515,10 +504,17 @@ local function scriptInitial(name)
 end
 
 local function scriptMeta(entry)
-    if entry.Tags and #entry.Tags > 0 then
-        return table.concat(entry.Tags, "  •  ")
+    return entry.Description or table.concat(entry.Tags or {}, "  •  ")
+end
+
+local function setShown(value)
+    shown = value
+    if gui.Parent then
+        gui.Enabled = value
     end
-    return "script"
+    if blur.Parent then
+        tween(blur, 0.16, { Size = value and 9 or 0 })
+    end
 end
 
 local function toast(text)
@@ -562,26 +558,31 @@ local function toast(text)
 end
 
 local function runScript(entry)
-    if entry.Demo then
-        toast("Selected " .. entry.Name)
-        return
-    end
-
     if type(entry.Run) == "function" then
         local ok, err = pcall(entry.Run)
         if not ok then
+            setShown(true)
             toast(tostring(err))
         end
         return
     end
 
     if entry.Url then
-        local ok, err = pcall(function()
-            return loadstring(game:HttpGet(entry.Url))()
+        setShown(false)
+        task.spawn(function()
+            local ok, err = pcall(function()
+                local source = game:HttpGet(entry.Url)
+                local chunk, compileError = loadstring(source)
+                if not chunk then
+                    error(compileError or "Failed to compile script")
+                end
+                return chunk()
+            end)
+            if not ok then
+                setShown(true)
+                toast("Velora failed: " .. tostring(err))
+            end
         end)
-        if not ok then
-            toast(tostring(err))
-        end
     end
 end
 
@@ -614,14 +615,14 @@ local function makeCard(entry, order)
     cardStroke.Parent = card
 
     local initialBox = create("Frame", {
-        Position = UDim2.fromOffset(10, 10),
-        Size = UDim2.fromOffset(40, 40),
+        Position = UDim2.fromOffset(11, 11),
+        Size = UDim2.fromOffset(44, 44),
         BackgroundColor3 = THEME.Button,
         BackgroundTransparency = 0.03,
         BorderSizePixel = 0,
         Parent = card,
     }, {
-        corner(9),
+        corner(10),
         stroke(THEME.Outline, 0.45, 1),
     })
 
@@ -630,18 +631,18 @@ local function makeCard(entry, order)
         BackgroundTransparency = 1,
         Text = scriptInitial(entry.Name),
         TextColor3 = THEME.Text,
-        TextSize = 16,
+        TextSize = 18,
         FontFace = font(Enum.FontWeight.SemiBold),
         Parent = initialBox,
     })
 
     create("TextLabel", {
         BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(60, 10),
-        Size = UDim2.new(1, -102, 0, 20),
+        Position = UDim2.fromOffset(67, 11),
+        Size = UDim2.new(1, -112, 0, 21),
         Text = entry.Name,
         TextColor3 = THEME.Text,
-        TextSize = 12,
+        TextSize = 13,
         FontFace = font(Enum.FontWeight.SemiBold),
         TextXAlignment = Enum.TextXAlignment.Left,
         TextTruncate = Enum.TextTruncate.AtEnd,
@@ -650,10 +651,24 @@ local function makeCard(entry, order)
 
     create("TextLabel", {
         BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(60, 31),
-        Size = UDim2.new(1, -110, 0, 15),
+        Position = UDim2.fromOffset(67, 33),
+        Size = UDim2.new(1, -118, 0, 18),
         Text = scriptMeta(entry),
         TextColor3 = THEME.Muted,
+        TextSize = 8,
+        FontFace = font(Enum.FontWeight.Medium),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        Parent = card,
+    })
+
+    local tagText = table.concat(entry.Tags or {}, "  •  ")
+    create("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(12, 73),
+        Size = UDim2.new(1, -116, 0, 18),
+        Text = tagText,
+        TextColor3 = THEME.Faint,
         TextSize = 8,
         FontFace = font(Enum.FontWeight.Medium),
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -682,8 +697,8 @@ local function makeCard(entry, order)
 
     local selectButton = create("TextButton", {
         AnchorPoint = Vector2.new(1, 1),
-        Position = UDim2.new(1, -10, 1, -10),
-        Size = UDim2.fromOffset(82, 28),
+        Position = UDim2.new(1, -11, 1, -11),
+        Size = UDim2.fromOffset(86, 29),
         BackgroundColor3 = THEME.Button,
         BackgroundTransparency = 0.12,
         Text = "Select",
@@ -716,7 +731,9 @@ local function makeCard(entry, order)
     end)
 
     selectButton.MouseLeave:Connect(function()
-        tween(selectButton, 0.10, { BackgroundTransparency = selectedId == entry.Id and 0.02 or 0.12 })
+        tween(selectButton, 0.10, {
+            BackgroundTransparency = selectedId == entry.Id and 0.02 or 0.12,
+        })
     end)
 
     selectButton.MouseButton1Click:Connect(function()
@@ -790,7 +807,12 @@ local function refresh()
     local visibleCount = 0
 
     for _, entry in ipairs(SCRIPTS) do
-        local searchable = entry.Name .. " " .. table.concat(entry.Tags or {}, " ")
+        local searchable = entry.Name
+            .. " "
+            .. tostring(entry.Description or "")
+            .. " "
+            .. table.concat(entry.Tags or {}, " ")
+
         local matchesSearch = contains(searchable, query)
         local matchesFilter = currentFilter == "All" or favorites[entry.Id] == true
         local visible = matchesSearch and matchesFilter
@@ -817,7 +839,7 @@ favoritesButton.MouseButton1Click:Connect(function()
     refresh()
 end)
 
-for id, button in pairs(favoriteButtons) do
+for _, button in pairs(favoriteButtons) do
     button.MouseButton1Click:Connect(function()
         if currentFilter == "Favorites" then
             task.defer(refresh)
@@ -839,42 +861,27 @@ local function updateGrid()
 
     local columns
     if width >= 1060 then
-        columns = 4
-    elseif width >= 760 then
         columns = 3
-    else
+    elseif width >= 760 then
         columns = 2
+    else
+        columns = 1
     end
 
     local gap = 9
     local usable = width - 4 - (gap * (columns - 1))
     local cellWidth = math.floor(usable / columns)
     gridLayout.FillDirectionMaxCells = columns
-    gridLayout.CellSize = UDim2.fromOffset(cellWidth, 92)
+    gridLayout.CellSize = UDim2.fromOffset(cellWidth, 104)
 end
 
 grid:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateGrid)
 task.defer(updateGrid)
 
-local shown = true
-local toggleConnection
-
-local function setShown(value)
-    shown = value
-    if gui.Parent then
-        gui.Enabled = value
-    end
-    if blur.Parent then
-        tween(blur, 0.16, { Size = value and 9 or 0 })
-    end
-end
-
 minimizeButton.MouseButton1Click:Connect(function()
-    -- Minimize now fully hides the hub. RightShift restores it.
     setShown(false)
 end)
 
-local closed = false
 local function closeHub()
     if closed then
         return
@@ -884,7 +891,6 @@ local function closeHub()
     if toggleConnection then
         toggleConnection:Disconnect()
     end
-
     if blur.Parent then
         blur:Destroy()
     end
@@ -901,10 +907,13 @@ toggleConnection = UserInputService.InputBegan:Connect(function(input, gameProce
     end
     if input.KeyCode == TOGGLE_KEY then
         setShown(not shown)
+    elseif input.KeyCode == Enum.KeyCode.K and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+        if shown then
+            searchBox:CaptureFocus()
+        end
     end
 end)
 
--- Drag from the brand area, keeping the search field untouched.
 local dragging = false
 local dragStart
 local startPosition
