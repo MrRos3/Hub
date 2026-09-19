@@ -1,0 +1,186 @@
+    end
+
+    local visible = collectVisible()
+    if #visible == 0 then
+        layout.CellSize = UDim2.new(1, -2, 0, 220)
+        layout.CellPadding = UDim2.fromOffset(0, 0)
+        layout.FillDirectionMaxCells = 1
+        local empty = createEmptyState()
+        empty.Parent = content
+    else
+        for index, entry in ipairs(visible) do
+            local card = currentView == "grid" and createGridCard(entry, index) or createListCard(entry, index)
+            card.Parent = content
+            table.insert(cardObjects, card)
+        end
+    end
+
+    task.defer(updateCanvas)
+end
+
+-- Details -------------------------------------------------------------------
+local function closeDetails()
+    selectedEntry = nil
+    if detailBackdrop and detailBackdrop.Parent then
+        detailBackdrop:Destroy()
+    end
+    if detailPanel and detailPanel.Parent then
+        local panel = detailPanel
+        tween(panel, 0.2, { Position = UDim2.new(1, 0, 0, 0) })
+        task.delay(0.21, function()
+            if panel and panel.Parent then
+                panel:Destroy()
+            end
+        end)
+    end
+    detailBackdrop = nil
+    detailPanel = nil
+end
+
+openDetails = function(entry)
+    closeDetails()
+    selectedEntry = entry
+
+    detailBackdrop = create("TextButton", {
+        Name = "DetailBackdrop",
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = Color3.new(0, 0, 0),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Text = "",
+        AutoButtonColor = false,
+        ZIndex = 50,
+        Parent = main,
+    })
+    detailBackdrop.MouseButton1Click:Connect(closeDetails)
+
+    detailPanel = create("Frame", {
+        Name = "DetailPanel",
+        Position = UDim2.new(1, 0, 0, 0),
+        Size = UDim2.fromOffset(286, 540),
+        BackgroundColor3 = Color3.fromHex("#101014"),
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        ZIndex = 55,
+        Parent = main,
+    })
+    create("Frame", {
+        Size = UDim2.fromOffset(1, 540),
+        BackgroundColor3 = Color3.fromRGB(38, 38, 44),
+        BackgroundTransparency = 0.12,
+        BorderSizePixel = 0,
+        ZIndex = 56,
+        Parent = detailPanel,
+    })
+
+    local image = create("ImageLabel", {
+        Size = UDim2.new(1, 0, 0, 138),
+        BackgroundColor3 = THEME.Surface2,
+        BorderSizePixel = 0,
+        Image = "",
+        ImageTransparency = 1,
+        ImageColor3 = Color3.fromRGB(190, 190, 198),
+        ScaleType = Enum.ScaleType.Crop,
+        ZIndex = 56,
+        Parent = detailPanel,
+    })
+    setRemoteImage(image, entry.ImageUrl, entry.ImageCache)
+
+    local close = create("TextButton", {
+        AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(1, -12, 0, 12),
+        Size = UDim2.fromOffset(27, 27),
+        BackgroundColor3 = THEME.Window,
+        BackgroundTransparency = 0.24,
+        BorderSizePixel = 0,
+        Text = "×",
+        TextColor3 = THEME.TextSoft,
+        TextSize = 18,
+        FontFace = font(Enum.FontWeight.Regular),
+        AutoButtonColor = false,
+        ZIndex = 62,
+        Parent = detailPanel,
+    }, { corner(6), stroke(Color3.fromRGB(60, 60, 67), 0.1, 1) })
+    close.MouseButton1Click:Connect(closeDetails)
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(18, 156),
+        Size = UDim2.fromOffset(220, 12),
+        BackgroundTransparency = 1,
+        Text = entry.Category,
+        TextColor3 = Color3.fromHex("#8870B5"),
+        TextSize = 8,
+        FontFace = font(Enum.FontWeight.Bold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 57,
+        Parent = detailPanel,
+    })
+    create("TextLabel", {
+        Position = UDim2.fromOffset(18, 176),
+        Size = UDim2.new(1, -36, 0, 28),
+        BackgroundTransparency = 1,
+        Text = entry.Name,
+        TextColor3 = THEME.Text,
+        TextSize = 20,
+        FontFace = font(Enum.FontWeight.SemiBold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 57,
+        Parent = detailPanel,
+    })
+    create("TextLabel", {
+        Position = UDim2.fromOffset(18, 205),
+        Size = UDim2.new(1, -36, 0, 16),
+        BackgroundTransparency = 1,
+        Text = entry.Game,
+        TextColor3 = Color3.fromHex("#777783"),
+        TextSize = 10,
+        FontFace = font(Enum.FontWeight.Regular),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 57,
+        Parent = detailPanel,
+    })
+    create("TextLabel", {
+        Position = UDim2.fromOffset(18, 233),
+        Size = UDim2.new(1, -36, 0, 48),
+        BackgroundTransparency = 1,
+        Text = entry.Description,
+        TextColor3 = Color3.fromHex("#9B9BA4"),
+        TextSize = 10,
+        FontFace = font(Enum.FontWeight.Regular),
+        TextWrapped = true,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 57,
+        Parent = detailPanel,
+    })
+
+    create("Frame", {
+        Position = UDim2.fromOffset(18, 298),
+        Size = UDim2.new(1, -36, 0, 1),
+        BackgroundColor3 = Color3.fromRGB(40, 40, 46),
+        BackgroundTransparency = 0.2,
+        BorderSizePixel = 0,
+        ZIndex = 57,
+        Parent = detailPanel,
+    })
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(18, 314),
+        Size = UDim2.fromOffset(220, 12),
+        BackgroundTransparency = 1,
+        Text = "SUPPORTED FEATURES",
+        TextColor3 = Color3.fromHex("#6D657B"),
+        TextSize = 8,
+        FontFace = font(Enum.FontWeight.Bold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 57,
+        Parent = detailPanel,
+    })
+
+    for i, feature in ipairs(entry.Features or {}) do
+        create("TextLabel", {
+            Position = UDim2.fromOffset(20, 337 + (i - 1) * 24),
+            Size = UDim2.new(1, -40, 0, 18),
+            BackgroundTransparency = 1,
+            Text = "✓   " .. feature,
+            TextColor3 = Color3.fromHex("#A8A8B0"),
