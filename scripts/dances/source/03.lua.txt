@@ -1,0 +1,360 @@
+        )
+
+end
+
+
+--==================================================
+
+-- QUALITY
+
+--==================================================
+
+
+local function ChooseQuality(note)
+
+    local existing =
+
+        PlannedQuality[note]
+
+
+    if existing then
+
+        return existing
+
+    end
+
+
+    local mode =
+
+        CONFIG.AccuracyMode
+
+
+    local quality
+
+
+    if mode == "Perfect" then
+
+        quality = "perfect"
+
+
+    elseif mode == "Good" then
+
+        quality = "good"
+
+
+    elseif mode == "Human" then
+
+        local random =
+
+            math.random()
+
+
+        if random
+
+            < CONFIG.HumanMissRate
+
+        then
+
+            quality = "miss"
+
+
+        elseif random
+
+            < CONFIG.HumanMissRate
+
+                + CONFIG.HumanGoodRate
+
+        then
+
+            quality = "good"
+
+
+        else
+
+            quality = "perfect"
+
+        end
+
+
+    elseif mode == "Random" then
+
+        local random =
+
+            math.random()
+
+
+        if random < 0.72 then
+
+            quality = "perfect"
+
+
+        elseif random < 0.93 then
+
+            quality = "good"
+
+
+        else
+
+            quality = "miss"
+
+        end
+
+
+    else
+
+        quality = "perfect"
+
+    end
+
+
+    PlannedQuality[note] =
+
+        quality
+
+
+    return quality
+
+end
+
+
+--==================================================
+
+-- TARGET TIMING
+
+--==================================================
+
+
+local function GetTargetOffset(quality)
+
+    if quality == "perfect" then
+
+        return
+
+            -math.min(
+
+                0.018,
+
+                PerfectWindow * 0.35
+
+            )
+
+    end
+
+
+    if quality == "good" then
+
+        return
+
+            math.min(
+
+                GoodWindow - 0.018,
+
+                PerfectWindow + 0.025
+
+            )
+
+    end
+
+
+    return 0
+
+end
+
+
+--==================================================
+
+-- LOW-FREQUENCY NOTE ACQUISITION
+
+--==================================================
+
+
+local function BeginAcquireNotes()
+
+    State.AcquireToken += 1
+
+
+    local token =
+
+        State.AcquireToken
+
+
+    task.spawn(function()
+
+        while Runtime.Alive
+
+            and State.InBattle
+
+            and token == State.AcquireToken
+
+            and not Notes
+
+        do
+
+            local found =
+
+                FindNotesTable()
+
+
+            if found then
+
+                Notes = found
+
+
+                State.Cursor = 1
+
+
+                State.LastNoteCount =
+
+                    #found
+
+
+                State.Engine =
+
+                    "tryHit + live notes"
+
+
+                return
+
+            end
+
+
+            task.wait(
+
+                CONFIG.AcquireInterval
+
+            )
+
+        end
+
+    end)
+
+end
+
+
+--==================================================
+
+-- VANTA UI
+
+--==================================================
+
+
+local VantaUI =
+
+    loadstring(
+
+        game:HttpGet(
+
+            "https://raw.githubusercontent.com/MrRos3/VantaUI/main/main.lua"
+
+        )
+
+    )()
+
+
+local Window =
+
+    VantaUI:CreateWindow({
+
+        Title = "Salty",
+
+
+        Icon = "music-2",
+
+
+        Theme =
+
+            "Salty Special",
+
+
+        StartupTab =
+
+            "Home",
+
+
+        HideSearchBar =
+
+            true,
+
+
+        ToggleKey =
+
+            Enum.KeyCode.RightShift,
+
+
+        Branding = {
+
+            Name = "SALTY",
+
+
+            Image =
+
+                VantaUI.Brand.Image,
+
+
+            Folder =
+
+                "Salty",
+
+
+            IconSize = 24,
+
+            IconRadius = 7,
+
+
+            OpenButtonIconRadius =
+
+                8,
+
+
+            Intro = false,
+
+        },
+
+
+        OpenButton = {
+
+            Title =
+
+                "Open Salty",
+
+
+            Enabled = true,
+
+            Draggable = true,
+
+
+            OnlyMobile = false,
+
+            OnlyIcon = true,
+
+
+            CornerRadius =
+
+                UDim.new(
+
+                    0,
+
+                    11
+
+                ),
+
+
+            StrokeThickness = 2,
+
+            ImageZoom = 1,
+
+
+            Color =
+
+                ColorSequence.new({
+
+                    ColorSequenceKeypoint.new(
+
+                        0,
+
+                        Color3.new(
+
+                            0,
+
+                            0,
+
