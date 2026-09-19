@@ -1,0 +1,402 @@
+        object
+    )
+end
+
+
+Runtime:
+AddConnection(
+
+    CollectionService:
+    GetInstanceAddedSignal(
+        "Weapon_Gun"
+    ):
+    Connect(function(object)
+
+        RegisterGunCandidate(
+            object
+        )
+
+    end)
+)
+
+
+Runtime:
+AddConnection(
+
+    CollectionService:
+    GetInstanceRemovedSignal(
+        "Weapon_Gun"
+    ):
+    Connect(function(object)
+
+        Runtime.GunCandidates[
+            object
+        ] =
+            nil
+
+    end)
+)
+
+
+--==============================================================
+-- LIGHTWEIGHT DESCENDANT WATCHER
+--==============================================================
+
+Runtime:
+AddConnection(
+
+    Workspace.DescendantAdded:
+    Connect(function(object)
+
+        --------------------------------------------------------
+        -- Do NOT inspect every object's descendants.
+        -- Only inspect this one newly-added instance.
+        --------------------------------------------------------
+
+        local name =
+            object.Name:
+            lower()
+
+
+        if name:find(
+            "gun",
+            1,
+            true
+        )
+            or object:GetAttribute(
+                "IsGun"
+            ) == true
+        then
+
+            RegisterGunCandidate(
+                object
+            )
+        end
+    end)
+)
+
+
+--==============================================================
+-- RARE FALLBACK GUN SCAN
+--==============================================================
+
+local function FallbackGunScan()
+
+    if os.clock()
+        - Runtime.LastGunFallbackScan
+        < Settings.GunFallbackScanInterval
+    then
+
+        return
+    end
+
+
+    Runtime.LastGunFallbackScan =
+        os.clock()
+
+
+    local map =
+        GetCurrentMap()
+
+
+    if not map then
+        return
+    end
+
+
+    ------------------------------------------------------------
+    -- This is the ONLY deep map scan.
+    -- It occurs at most once every 4 seconds AND only as fallback.
+    ------------------------------------------------------------
+
+    for _,
+        object
+    in ipairs(
+        map:
+        GetDescendants()
+    )
+    do
+
+        if object:IsA("Tool")
+            or object:IsA("Model")
+            or object:IsA("BasePart")
+        then
+
+            local name =
+                object.Name:
+                lower()
+
+
+            if name:find(
+                "gun",
+                1,
+                true
+            )
+                or object:GetAttribute(
+                    "IsGun"
+                ) == true
+            then
+
+                RegisterGunCandidate(
+                    object
+                )
+            end
+        end
+    end
+end
+
+
+local function GunScore(
+    object
+)
+
+    if not object
+        or not object.Parent
+        or not object:
+            IsDescendantOf(
+                Workspace
+            )
+        or InsideCharacter(
+            object
+        )
+        or IsDisplayObject(
+            object
+        )
+    then
+
+        return -1
+    end
+
+
+    local score = 0
+
+
+    local name =
+        object.Name:
+        lower()
+
+
+    if object:IsA(
+        "Tool"
+    )
+        and IsGun(object)
+    then
+
+        score += 100
+    end
+
+
+    if name == "gundrop"
+        or name == "droppedgun"
+        or name == "gunpickup"
+    then
+
+        score += 100
+    end
+
+
+    if name:find(
+        "gundrop",
+        1,
+        true
+    )
+        or name:find(
+            "droppedgun",
+            1,
+            true
+        )
+    then
+
+        score += 80
+    end
+
+
+    if object:GetAttribute(
+        "IsGun"
+    ) == true
+    then
+
+        score += 60
+    end
+
+
+    if HasTag(
+        object,
+        "Weapon_Gun"
+    )
+    then
+
+        score += 60
+    end
+
+
+    local map =
+        GetCurrentMap()
+
+
+    if map
+        and object:
+            IsDescendantOf(map)
+    then
+
+        score += 20
+    end
+
+
+    return score
+end
+
+
+local function FindDroppedGun(
+    allowFallback
+)
+
+    local best =
+        nil
+
+    local bestPart =
+        nil
+
+    local bestScore =
+        0
+
+
+    local dead = {}
+
+
+    for object
+    in pairs(
+        Runtime.GunCandidates
+    )
+    do
+
+        if not object
+            or not object.Parent
+        then
+
+            dead[#dead + 1] =
+                object
+
+        else
+
+            local score =
+                GunScore(
+                    object
+                )
+
+
+            if score > bestScore then
+
+                local part =
+                    ObjectPart(
+                        object
+                    )
+
+
+                if part then
+
+                    best =
+                        object
+
+                    bestPart =
+                        part
+
+                    bestScore =
+                        score
+                end
+            end
+        end
+    end
+
+
+    for _,
+        object
+    in ipairs(dead)
+    do
+
+        Runtime.GunCandidates[
+            object
+        ] =
+            nil
+    end
+
+
+    if not best
+        and allowFallback
+    then
+
+        FallbackGunScan()
+
+
+        return FindDroppedGun(
+            false
+        )
+    end
+
+
+    Runtime.CurrentDroppedGun =
+        best
+
+    Runtime.CurrentDroppedGunPart =
+        bestPart
+
+
+    if bestScore < 45 then
+
+        return nil
+    end
+
+
+    return best,
+        bestPart,
+        bestScore
+end
+
+
+--==============================================================
+-- DROPPED GUN ESP
+--==============================================================
+
+local function ClearGunESP()
+
+    local object =
+        Runtime.CurrentDroppedGun
+
+
+    if object
+        and object.Parent
+    then
+
+        local highlight =
+            object:
+            FindFirstChild(
+                "__SaltyGunESP"
+            )
+
+
+        if highlight then
+            highlight:Destroy()
+        end
+    end
+end
+
+
+local function UpdateGunESP()
+
+    if not Settings.DroppedGunESP then
+
+        ClearGunESP()
+
+        return
+    end
+
+
+    local object =
+        select(
+            1,
+            FindDroppedGun(
+                false
+            )
+        )
+
+
