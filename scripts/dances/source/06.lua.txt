@@ -1,0 +1,373 @@
+--==================================================
+
+-- AUTO SONG
+
+--==================================================
+
+
+local function PickSong()
+
+    if not CONFIG.AutoPickSong then
+
+        return
+
+    end
+
+
+    local songs =
+
+        DanceBattleConfig.Songs
+
+
+    if type(songs) ~= "table" then
+
+        return
+
+    end
+
+
+    local available = {}
+
+
+    for index, song in ipairs(songs) do
+
+        if type(song) == "table"
+
+            and not song.onCooldown
+
+        then
+
+            table.insert(
+
+                available,
+
+                index
+
+            )
+
+        end
+
+    end
+
+
+    if #available == 0 then
+
+        return
+
+    end
+
+
+    local songIndex =
+
+        available[
+
+            math.random(
+
+                1,
+
+                #available
+
+            )
+
+        ]
+
+
+    Remotes.SongVote:FireServer(
+
+        songIndex,
+
+        CONFIG.PreferredDifficulty,
+
+        CONFIG.BattleMode
+
+    )
+
+
+    VantaUI:Notify({
+
+        Content =
+
+            "Auto-picked song",
+
+
+        Icon =
+
+            "disc-3",
+
+    })
+
+end
+
+
+Runtime:Connect(
+
+    Remotes.SongVote.OnClientEvent,
+
+    function(data)
+
+        if data == nil
+
+            and CONFIG.AutoPickSong
+
+        then
+
+            task.delay(
+
+                0.25,
+
+                PickSong
+
+            )
+
+        end
+
+    end
+
+)
+
+
+--==================================================
+
+-- INITIAL MID-BATTLE SCAN
+
+--==================================================
+
+
+if TryHit then
+
+    Notes =
+
+        FindNotesTable()
+
+
+    if Notes then
+
+        State.InBattle =
+
+            true
+
+
+        State.Cursor =
+
+            1
+
+
+        State.LastNoteCount =
+
+            #Notes
+
+
+        State.Engine =
+
+            "tryHit + live notes"
+
+    end
+
+end
+
+
+--==================================================
+
+-- AUTOPLAYER CORE
+
+--==================================================
+
+
+local function AutoPlayerStep()
+
+    ------------------------------------------------
+
+    -- Extremely cheap early exit.
+
+    ------------------------------------------------
+
+
+    if not Runtime.Alive
+
+        or not CONFIG.Enabled
+
+        or not State.InBattle
+
+        or not TryHit
+
+        or not Notes
+
+    then
+
+        return
+
+    end
+
+
+    local noteCount =
+
+        #Notes
+
+
+    if noteCount == 0 then
+
+        return
+
+    end
+
+
+    ------------------------------------------------
+
+    -- Queue replaced / cleared.
+
+    ------------------------------------------------
+
+
+    if noteCount
+
+        < State.LastNoteCount
+
+    then
+
+        State.Cursor =
+
+            1
+
+    end
+
+
+    State.LastNoteCount =
+
+        noteCount
+
+
+    local now =
+
+        Workspace:GetServerTimeNow()
+
+
+    ------------------------------------------------
+
+    -- Advance past completed / expired notes.
+
+    ------------------------------------------------
+
+
+    while State.Cursor <= noteCount do
+
+        local note =
+
+            Notes[
+
+                State.Cursor
+
+            ]
+
+
+        if not LooksLikeNote(note) then
+
+            State.Cursor += 1
+
+
+        elseif note.hit
+
+            or note.missed
+
+        then
+
+            State.Cursor += 1
+
+
+        elseif note.hitTime
+
+            < now
+
+                - GoodWindow
+
+        then
+
+            State.Cursor += 1
+
+
+        else
+
+            break
+
+        end
+
+    end
+
+
+    ------------------------------------------------
+
+    -- PERFORMANCE FIX:
+
+    --
+
+    -- Never let one Heartbeat trigger a giant burst
+
+    -- of tryHit() calls.
+
+    ------------------------------------------------
+
+
+    local hitsThisHeartbeat =
+
+        0
+
+
+    local checked =
+
+        0
+
+
+    for index =
+
+        State.Cursor,
+
+        noteCount
+
+    do
+
+        if checked
+
+            >= CONFIG.NoteCheckBudget
+
+        then
+
+            break
+
+        end
+
+
+        local note =
+
+            Notes[index]
+
+
+        if not LooksLikeNote(note) then
+
+            continue
+
+        end
+
+
+        if note.hit
+
+            or note.missed
+
+        then
+
+            continue
+
+        end
+
+
+        local untilHit =
+
+            note.hitTime
+
+            - now
+
+
+        ------------------------------------------------
+
+        -- Sorted queue:
+
+        -- everything after this is later too.
+
