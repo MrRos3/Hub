@@ -1,6 +1,6 @@
--- Velora Hub v5
+-- Velora Hub v6
 -- VantaUI-inspired searchable script library
--- Showcase content removed. Real scripts only.
+-- Real scripts only. Premium notification stack and launch feedback.
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -58,10 +58,14 @@ local function stroke(color, transparency, thickness)
     })
 end
 
-local function tween(object, duration, props)
+local function tween(object, duration, props, style, direction)
     local animation = TweenService:Create(
         object,
-        TweenInfo.new(duration or 0.14, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+        TweenInfo.new(
+            duration or 0.14,
+            style or Enum.EasingStyle.Quint,
+            direction or Enum.EasingDirection.Out
+        ),
         props
     )
     animation:Play()
@@ -143,7 +147,6 @@ end
 
 local brandAsset = cacheRemoteAsset(BRAND_URL, "VeloraHub/assets/vanta-brand-v2.jpeg", "")
 
--- Real script library. Add future scripts here.
 local SCRIPTS = {
     {
         Id = "velora-piano",
@@ -444,7 +447,7 @@ local countLabel = create("TextLabel", {
     Size = UDim2.fromOffset(104, 28),
     BackgroundColor3 = THEME.Element,
     BackgroundTransparency = 0.14,
-    Text = "2 scripts",
+    Text = "0 scripts",
     TextColor3 = THEME.Muted,
     TextSize = 9,
     FontFace = font(Enum.FontWeight.Medium),
@@ -496,6 +499,232 @@ local emptyLabel = create("TextLabel", {
     Parent = main,
 })
 
+-- Premium Vanta-style notification stack.
+local notificationHost = create("Frame", {
+    Name = "Notifications",
+    AnchorPoint = Vector2.new(1, 0),
+    Position = UDim2.new(1, -24, 0, 24),
+    Size = UDim2.fromOffset(360, 420),
+    BackgroundTransparency = 1,
+    ZIndex = 100,
+    Parent = dim,
+}, {
+    create("UIListLayout", {
+        FillDirection = Enum.FillDirection.Vertical,
+        HorizontalAlignment = Enum.HorizontalAlignment.Right,
+        VerticalAlignment = Enum.VerticalAlignment.Top,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 10),
+    }),
+})
+
+local notificationSequence = 0
+local activeNotifications = {}
+
+local function compactError(value)
+    local text = tostring(value or "Unknown error")
+    text = text:gsub("\r", " "):gsub("\n+", " "):gsub("%s+", " ")
+    text = text:gsub("^%s+", ""):gsub("%s+$", "")
+    if #text > 230 then
+        text = text:sub(1, 227) .. "..."
+    end
+    return text
+end
+
+local function hubNotify(options)
+    options = options or {}
+
+    notificationSequence = notificationSequence + 1
+    local sequence = notificationSequence
+    local kind = options.Kind or "info"
+    local title = tostring(options.Title or "Velora")
+    local body = tostring(options.Body or "")
+    local duration = tonumber(options.Duration) or (kind == "error" and 6 or 3.5)
+    local accent = kind == "error" and THEME.AccentBright or THEME.Accent
+    local letter = string.upper((title:match("%a") or "V"))
+
+    while #activeNotifications >= 4 do
+        local oldest = table.remove(activeNotifications, 1)
+        if oldest and oldest.Parent then
+            oldest:Destroy()
+        end
+    end
+
+    local card = create("CanvasGroup", {
+        Name = "Notice_" .. tostring(sequence),
+        LayoutOrder = -sequence,
+        Size = UDim2.fromOffset(350, 86),
+        BackgroundColor3 = THEME.Dialog,
+        BackgroundTransparency = 0.03,
+        BorderSizePixel = 0,
+        GroupTransparency = 1,
+        ZIndex = 101,
+        Parent = notificationHost,
+    }, {
+        corner(13),
+        stroke(kind == "error" and THEME.AccentBright or THEME.Outline, kind == "error" and 0.22 or 0.42, 1),
+        create("UIGradient", {
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromHex("#16090D")),
+                ColorSequenceKeypoint.new(0.55, THEME.Dialog),
+                ColorSequenceKeypoint.new(1, Color3.fromHex("#080608")),
+            }),
+            Rotation = 8,
+        }),
+    })
+
+    local scale = create("UIScale", { Scale = 0.96, Parent = card })
+
+    create("Frame", {
+        Position = UDim2.fromOffset(0, 9),
+        Size = UDim2.new(0, 3, 1, -18),
+        BackgroundColor3 = accent,
+        BorderSizePixel = 0,
+        ZIndex = 102,
+        Parent = card,
+    }, {
+        corner(3),
+    })
+
+    local badge = create("Frame", {
+        Position = UDim2.fromOffset(14, 15),
+        Size = UDim2.fromOffset(38, 38),
+        BackgroundColor3 = THEME.Button,
+        BackgroundTransparency = 0.02,
+        BorderSizePixel = 0,
+        ZIndex = 102,
+        Parent = card,
+    }, {
+        corner(10),
+        stroke(accent, 0.42, 1),
+    })
+
+    create("TextLabel", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        Text = letter,
+        TextColor3 = THEME.Text,
+        TextSize = 15,
+        FontFace = font(Enum.FontWeight.Bold),
+        ZIndex = 103,
+        Parent = badge,
+    })
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(64, 12),
+        Size = UDim2.new(1, -104, 0, 20),
+        BackgroundTransparency = 1,
+        Text = title,
+        TextColor3 = THEME.Text,
+        TextSize = 11,
+        FontFace = font(Enum.FontWeight.SemiBold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        ZIndex = 102,
+        Parent = card,
+    })
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(64, 32),
+        Size = UDim2.new(1, -104, 0, 36),
+        BackgroundTransparency = 1,
+        Text = body,
+        TextColor3 = kind == "error" and Color3.fromRGB(232, 211, 217) or THEME.Muted,
+        TextSize = 9,
+        FontFace = font(),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        ZIndex = 102,
+        Parent = card,
+    })
+
+    local closeNotice = create("ImageButton", {
+        AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(1, -9, 0, 9),
+        Size = UDim2.fromOffset(20, 20),
+        BackgroundTransparency = 1,
+        Image = icon("close"),
+        ImageColor3 = THEME.Faint,
+        ScaleType = Enum.ScaleType.Fit,
+        AutoButtonColor = false,
+        ZIndex = 104,
+        Parent = card,
+    }, {
+        create("UIPadding", {
+            PaddingLeft = UDim.new(0, 5),
+            PaddingRight = UDim.new(0, 5),
+            PaddingTop = UDim.new(0, 5),
+            PaddingBottom = UDim.new(0, 5),
+        }),
+    })
+
+    local progressTrack = create("Frame", {
+        AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.new(0, 14, 1, -7),
+        Size = UDim2.new(1, -28, 0, 2),
+        BackgroundColor3 = THEME.Outline,
+        BackgroundTransparency = 0.72,
+        BorderSizePixel = 0,
+        ZIndex = 102,
+        Parent = card,
+    }, {
+        corner(2),
+    })
+
+    local progress = create("Frame", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = accent,
+        BackgroundTransparency = 0.08,
+        BorderSizePixel = 0,
+        ZIndex = 103,
+        Parent = progressTrack,
+    }, {
+        corner(2),
+    })
+
+    table.insert(activeNotifications, card)
+
+    local removed = false
+    local function removeNotice()
+        if removed or not card.Parent then
+            return
+        end
+        removed = true
+
+        for index, value in ipairs(activeNotifications) do
+            if value == card then
+                table.remove(activeNotifications, index)
+                break
+            end
+        end
+
+        tween(scale, 0.14, { Scale = 0.96 })
+        tween(card, 0.14, { GroupTransparency = 1 })
+        task.delay(0.15, function()
+            if card.Parent then
+                card:Destroy()
+            end
+        end)
+    end
+
+    closeNotice.MouseEnter:Connect(function()
+        tween(closeNotice, 0.10, { ImageColor3 = THEME.Text })
+    end)
+    closeNotice.MouseLeave:Connect(function()
+        tween(closeNotice, 0.10, { ImageColor3 = THEME.Faint })
+    end)
+    closeNotice.MouseButton1Click:Connect(removeNotice)
+
+    tween(card, 0.20, { GroupTransparency = 0 })
+    tween(scale, 0.20, { Scale = 1 })
+    tween(progress, duration, { Size = UDim2.new(0, 0, 1, 0) }, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+
+    task.delay(duration, removeNotice)
+    return card
+end
+
 local favorites = {}
 local cards = {}
 local favoriteButtons = {}
@@ -524,73 +753,55 @@ local function setShown(value)
     end
 end
 
-local function toast(text)
-    local existing = main:FindFirstChild("Toast")
-    if existing then
-        existing:Destroy()
-    end
-
-    local label = create("TextLabel", {
-        Name = "Toast",
-        AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.new(0.5, 0, 1, 10),
-        Size = UDim2.fromOffset(320, 38),
-        BackgroundColor3 = THEME.Dialog,
-        BackgroundTransparency = 0.02,
-        Text = text,
-        TextColor3 = THEME.Text,
-        TextSize = 10,
-        FontFace = font(Enum.FontWeight.Medium),
-        Parent = main,
-    }, {
-        corner(9),
-        stroke(THEME.Outline, 0.30, 1),
+local function runScript(entry)
+    hubNotify({
+        Title = entry.Name,
+        Body = "Loading the latest build...",
+        Kind = "info",
+        Duration = 1.7,
     })
 
-    tween(label, 0.14, { Position = UDim2.new(0.5, 0, 1, -24) })
-
-    task.delay(1.8, function()
-        if label.Parent then
-            tween(label, 0.12, {
-                Position = UDim2.new(0.5, 0, 1, 10),
-                TextTransparency = 1,
-                BackgroundTransparency = 1,
-            })
-            task.wait(0.13)
-            if label.Parent then
-                label:Destroy()
-            end
+    task.delay(0.24, function()
+        if closed then
+            return
         end
-    end)
-end
 
-local function runScript(entry)
-    if type(entry.Run) == "function" then
-        local ok, err = pcall(entry.Run)
-        if not ok then
-            setShown(true)
-            toast(tostring(err))
-        end
-        return
-    end
-
-    if entry.Url then
         setShown(false)
+
         task.spawn(function()
             local ok, err = pcall(function()
+                if type(entry.Run) == "function" then
+                    return entry.Run()
+                end
+
+                if not entry.Url then
+                    error("No script source is configured.")
+                end
+
                 local source = game:HttpGet(entry.Url)
+                if type(source) ~= "string" or source == "" then
+                    error("The script source returned empty data.")
+                end
+
                 local chunk, compileError = loadstring(source)
                 if not chunk then
-                    error(compileError or "Failed to compile script")
+                    error(compileError or "Failed to compile script.")
                 end
+
                 return chunk()
             end)
-            if not ok then
+
+            if not ok and not closed then
                 setShown(true)
-                toast(entry.Name .. " failed: " .. tostring(err))
+                hubNotify({
+                    Title = entry.Name .. " could not launch",
+                    Body = compactError(err),
+                    Kind = "error",
+                    Duration = 6,
+                })
             end
         end)
-    end
+    end)
 end
 
 local function updateCardSelection()
@@ -669,12 +880,11 @@ local function makeCard(entry, order)
         Parent = card,
     })
 
-    local tagText = table.concat(entry.Tags or {}, "  •  ")
     create("TextLabel", {
         BackgroundTransparency = 1,
         Position = UDim2.fromOffset(12, 73),
         Size = UDim2.new(1, -116, 0, 18),
-        Text = tagText,
+        Text = table.concat(entry.Tags or {}, "  •  "),
         TextColor3 = THEME.Faint,
         TextSize = 8,
         FontFace = font(Enum.FontWeight.Medium),
@@ -826,7 +1036,7 @@ local function refresh()
 
         cards[entry.Id].Card.Visible = visible
         if visible then
-            visibleCount += 1
+            visibleCount = visibleCount + 1
         end
     end
 
@@ -912,9 +1122,13 @@ toggleConnection = UserInputService.InputBegan:Connect(function(input, gameProce
     if gameProcessed or closed then
         return
     end
+
     if input.KeyCode == TOGGLE_KEY then
         setShown(not shown)
-    elseif input.KeyCode == Enum.KeyCode.K and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+    elseif input.KeyCode == Enum.KeyCode.K
+        and (UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
+            or UserInputService:IsKeyDown(Enum.KeyCode.RightControl))
+    then
         if shown then
             searchBox:CaptureFocus()
         end
