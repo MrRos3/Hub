@@ -1,0 +1,425 @@
+                            0
+
+                        )
+
+                    ),
+
+
+                    ColorSequenceKeypoint.new(
+
+                        1,
+
+                        Color3.new(
+
+                            0,
+
+                            0,
+
+                            0
+
+                        )
+
+                    ),
+
+                }),
+
+        },
+
+    })
+
+
+Runtime.Window =
+
+    Window
+
+
+Window:Tag({
+
+    Title = "DANCES",
+
+
+    Icon = "music",
+
+
+    Color =
+
+        Color3.fromHex(
+
+            "#151116"
+
+        ),
+
+
+    Border = true,
+
+})
+
+
+--==================================================
+
+-- TABS
+
+--==================================================
+
+
+local Home =
+
+    Window:Tab({
+
+        Title = "Home",
+
+        Icon = "house",
+
+    })
+
+
+local Auto =
+
+    Window:Tab({
+
+        Title = "Auto",
+
+        Icon = "bot",
+
+    })
+
+
+local Automation =
+
+    Window:Tab({
+
+        Title = "Automation",
+
+        Icon = "zap",
+
+    })
+
+
+local Settings =
+
+    Window:Tab({
+
+        Title = "Settings",
+
+        Icon = "settings",
+
+    })
+
+
+--==================================================
+
+-- HOME
+
+--==================================================
+
+
+Home:Section({
+
+    Title =
+
+        "Alzzmy's DANCES",
+
+
+    Desc =
+
+        "Uses the game's original tryHit function.",
+
+
+    Icon =
+
+        "music-2",
+
+
+    Box =
+
+        true,
+
+})
+
+
+local Status =
+
+    Home:Section({
+
+        Title =
+
+            "AutoPlayer Engine",
+
+
+        Desc =
+
+            "Engine: "
+
+            .. State.Engine,
+
+
+        Icon =
+
+            "activity",
+
+
+        Box =
+
+            true,
+
+    })
+
+
+Home:Paragraph({
+
+    Title =
+
+        "Engine",
+
+
+    Desc =
+
+        "Reads the game's live note queue and calls the original tryHit function. Hit calls are frame-budgeted to prevent start-of-chart stutter.",
+
+})
+
+
+--==================================================
+
+-- AUTO
+
+--==================================================
+
+
+Auto:Toggle({
+
+    Title =
+
+        "AutoPlay",
+
+
+    Desc =
+
+        "Automatically hit notes using DanceBattleClient's original tryHit().",
+
+
+    Icon =
+
+        "play",
+
+
+    Value =
+
+        CONFIG.Enabled,
+
+
+    Callback = function(value)
+
+        CONFIG.Enabled =
+
+            value
+
+    end,
+
+})
+
+
+Auto:Dropdown({
+
+    Title =
+
+        "Accuracy",
+
+
+    Desc =
+
+        "Choose how the AutoPlayer performs.",
+
+
+    Values = {
+
+        "Perfect",
+
+        "Good",
+
+        "Human",
+
+        "Random",
+
+    },
+
+
+    Value =
+
+        CONFIG.AccuracyMode,
+
+
+    Callback = function(value)
+
+        CONFIG.AccuracyMode =
+
+            tostring(value)
+
+
+        PlannedQuality =
+
+            setmetatable(
+
+                {},
+
+                {
+
+                    __mode = "k",
+
+                }
+
+            )
+
+    end,
+
+})
+
+
+Auto:Slider({
+
+    Title =
+
+        "Timing Offset",
+
+
+    Desc =
+
+        "Fine tune hit timing in milliseconds.",
+
+
+    Value = {
+
+        Min = -40,
+
+        Max = 40,
+
+        Default = 0,
+
+    },
+
+
+    Step = 1,
+
+
+    Callback = function(value)
+
+        CONFIG.TimingOffset =
+
+            tonumber(value)
+
+            / 1000
+
+    end,
+
+})
+
+
+Auto:Slider({
+
+    Title =
+
+        "Human Miss %",
+
+
+    Value = {
+
+        Min = 0,
+
+        Max = 20,
+
+
+        Default =
+
+            CONFIG.HumanMissRate
+
+            * 100,
+
+    },
+
+
+    Step = 1,
+
+
+    Callback = function(value)
+
+        CONFIG.HumanMissRate =
+
+            tonumber(value)
+
+            / 100
+
+    end,
+
+})
+
+
+Auto:Slider({
+
+    Title =
+
+        "Human Good %",
+
+
+    Value = {
+
+        Min = 0,
+
+        Max = 50,
+
+
+        Default =
+
+            CONFIG.HumanGoodRate
+
+            * 100,
+
+    },
+
+
+    Step = 1,
+
+
+    Callback = function(value)
+
+        CONFIG.HumanGoodRate =
+
+            tonumber(value)
+
+            / 100
+
+    end,
+
+})
+
+
+--==================================================
+
+-- AUTOMATION
+
+--==================================================
+
+
+Automation:Toggle({
+
+    Title =
+
+        "Auto Accept",
+
+
+    Desc =
+
+        "Automatically accept dance battle requests.",
+
+
+    Icon =
+
+        "swords",
+
+
+    Value =
+
+        CONFIG.AutoAcceptChallenges,
+
+
+    Callback = function(value)
+
