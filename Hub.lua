@@ -150,4 +150,74 @@ if not chunk then
     error("[Salty Hub] Failed to compile patched HubCore.lua: " .. tostring(compileError), 0)
 end
 
-return chunk()
+local result = chunk()
+
+-- Runtime polish layer. Keeps the source UI intact while enforcing the final presentation.
+task.defer(function()
+    local rootGui = type(result) == "table" and result.Gui or nil
+    if not rootGui or not rootGui.Parent then
+        return
+    end
+
+    local dim = rootGui:FindFirstChild("Dim")
+    local main = dim and dim:FindFirstChild("Window")
+
+    -- Make every cropped card/details image actually render with rounded corners.
+    local function roundImage(object)
+        if not object:IsA("ImageLabel") or object.ScaleType ~= Enum.ScaleType.Crop then
+            return
+        end
+        local uiCorner = object:FindFirstChildOfClass("UICorner")
+        if not uiCorner then
+            uiCorner = Instance.new("UICorner")
+            uiCorner.Parent = object
+        end
+        uiCorner.CornerRadius = UDim.new(0, 10)
+    end
+
+    if main then
+        for _, object in ipairs(main:GetDescendants()) do
+            roundImage(object)
+        end
+        main.DescendantAdded:Connect(function(object)
+            task.defer(function()
+                if object and object.Parent then
+                    roundImage(object)
+                end
+            end)
+        end)
+
+        -- Lock the main window in place so the GUI cannot be dragged.
+        local lockedPosition = main.Position
+        local correctingPosition = false
+        main:GetPropertyChangedSignal("Position"):Connect(function()
+            if correctingPosition or main.Position == lockedPosition then
+                return
+            end
+            correctingPosition = true
+            main.Position = lockedPosition
+            correctingPosition = false
+        end)
+    end
+
+    -- Stronger background blur. Re-apply after RightShift brings the Hub back.
+    local blur = game:GetService("Lighting"):FindFirstChild("SaltyHubBlur")
+    if blur and blur:IsA("BlurEffect") then
+        task.delay(0.25, function()
+            if blur and blur.Parent and blur.Enabled then
+                blur.Size = 14
+            end
+        end)
+        blur:GetPropertyChangedSignal("Enabled"):Connect(function()
+            if blur.Enabled then
+                task.delay(0.25, function()
+                    if blur and blur.Parent and blur.Enabled then
+                        blur.Size = 14
+                    end
+                end)
+            end
+        end)
+    end
+end)
+
+return result
