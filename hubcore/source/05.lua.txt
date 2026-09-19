@@ -1,0 +1,186 @@
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(12, 12),
+        BackgroundTransparency = 1,
+        Parent = parentButton,
+    })
+    for y = 0, 1 do
+        for x = 0, 1 do
+            create("Frame", {
+                Position = UDim2.fromOffset(x * 7, y * 7),
+                Size = UDim2.fromOffset(5, 5),
+                BackgroundColor3 = THEME.AccentBright,
+                BackgroundTransparency = 0.2,
+                BorderSizePixel = 0,
+                Parent = holder,
+            }, { corner(1) })
+        end
+    end
+    return holder
+end
+
+local function makeListGlyph(parentButton)
+    local holder = create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(13, 12),
+        BackgroundTransparency = 1,
+        Parent = parentButton,
+    })
+    for y = 0, 2 do
+        create("Frame", {
+            Position = UDim2.fromOffset(0, y * 3),
+            Size = UDim2.fromOffset(3, 3),
+            BackgroundColor3 = THEME.Muted2,
+            BorderSizePixel = 0,
+            Parent = holder,
+        }, { corner(1) })
+        create("Frame", {
+            Position = UDim2.fromOffset(5, y * 3 + 1),
+            Size = UDim2.fromOffset(8, 1),
+            BackgroundColor3 = THEME.Muted2,
+            BorderSizePixel = 0,
+            Parent = holder,
+        })
+    end
+    return holder
+end
+
+local gridGlyph = makeGridGlyph(gridButton)
+local listGlyph = makeListGlyph(listButton)
+
+local sortPopup = create("Frame", {
+    Name = "SortPopup",
+    AnchorPoint = Vector2.new(1, 0),
+    Position = UDim2.new(1, -72, 0, 34),
+    Size = UDim2.fromOffset(145, 102),
+    BackgroundColor3 = THEME.Surface2,
+    BorderSizePixel = 0,
+    Visible = false,
+    ZIndex = 40,
+    Parent = toolbar,
+}, { corner(7), stroke(Color3.fromRGB(44, 44, 51), 0.08, 1) })
+
+local sortOptions = { "Recently Updated", "Alphabetical", "Most Used" }
+for i, option in ipairs(sortOptions) do
+    local optionButton = create("TextButton", {
+        Position = UDim2.fromOffset(5, 5 + (i - 1) * 31),
+        Size = UDim2.new(1, -10, 0, 28),
+        BackgroundColor3 = THEME.AccentSoft,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Text = option,
+        TextColor3 = THEME.TextSoft,
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Medium),
+        AutoButtonColor = false,
+        ZIndex = 41,
+        Parent = sortPopup,
+    }, { corner(5) })
+    optionButton.MouseEnter:Connect(function()
+        tween(optionButton, 0.12, { BackgroundTransparency = 0.25 })
+    end)
+    optionButton.MouseLeave:Connect(function()
+        tween(optionButton, 0.12, { BackgroundTransparency = 1 })
+    end)
+    optionButton.MouseButton1Click:Connect(function()
+        currentSort = option
+        settingsData.sort = option
+        sortText.Text = option
+        sortPopup.Visible = false
+        saveSettings()
+    end)
+end
+
+-- Content -------------------------------------------------------------------
+local content = create("ScrollingFrame", {
+    Name = "Content",
+    Position = UDim2.fromOffset(22, 175),
+    Size = UDim2.new(1, -44, 1, -187),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ScrollBarThickness = 4,
+    ScrollBarImageColor3 = Color3.fromHex("#3B2A5E"),
+    ScrollBarImageTransparency = 0.2,
+    CanvasSize = UDim2.fromOffset(0, 0),
+    AutomaticCanvasSize = Enum.AutomaticSize.None,
+    ScrollingDirection = Enum.ScrollingDirection.Y,
+    Parent = main,
+})
+
+local padding = create("UIPadding", {
+    PaddingTop = UDim.new(0, 1),
+    PaddingLeft = UDim.new(0, 1),
+    PaddingRight = UDim.new(0, 1),
+    PaddingBottom = UDim.new(0, 4),
+    Parent = content,
+})
+
+local layout = create("UIGridLayout", {
+    SortOrder = Enum.SortOrder.LayoutOrder,
+    CellSize = UDim2.fromOffset(250, 168),
+    CellPadding = UDim2.fromOffset(12, 12),
+    FillDirectionMaxCells = 3,
+    HorizontalAlignment = Enum.HorizontalAlignment.Left,
+    VerticalAlignment = Enum.VerticalAlignment.Top,
+    Parent = content,
+})
+
+local function updateCanvas()
+    content.CanvasSize = UDim2.fromOffset(0, layout.AbsoluteContentSize.Y + 6)
+end
+layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
+
+local loaded = {}
+local loading = {}
+local cardObjects = {}
+local selectedEntry = nil
+local detailBackdrop
+local detailPanel
+local toastToken = 0
+
+local function isFavorite(id)
+    return settingsData.favorites[id] == true
+end
+
+local function setFavorite(id, value)
+    settingsData.favorites[id] = value and true or nil
+    saveSettings()
+end
+
+local function collectVisible()
+    local query = normalize(searchBox.Text)
+    local result = {}
+    for _, entry in ipairs(SCRIPTS) do
+        local matchesQuery = query == ""
+            or contains(entry.Name, query)
+            or contains(entry.Game, query)
+            or contains(entry.Category, query)
+            or contains(entry.Description, query)
+        if not matchesQuery then
+            for _, tag in ipairs(entry.Tags or {}) do
+                if contains(tag, query) then
+                    matchesQuery = true
+                    break
+                end
+            end
+        end
+
+        local matchesFilter = currentFilter == "All Scripts"
+            or (currentFilter == "Games" and entry.Category == "GAME SCRIPT")
+            or (currentFilter == "Universal" and entry.Category == "UNIVERSAL")
+            or (currentFilter == "Favorites" and isFavorite(entry.Id))
+
+        if matchesQuery and matchesFilter then
+            table.insert(result, entry)
+        end
+    end
+
+    if currentSort == "Alphabetical" then
+        table.sort(result, function(a, b)
+            return a.Name:lower() < b.Name:lower()
+        end)
+    elseif currentSort == "Most Used" then
+        table.sort(result, function(a, b)
+            return (a.UsageCount or 0) > (b.UsageCount or 0)
+        end)
