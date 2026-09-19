@@ -1,0 +1,358 @@
+
+
+        Runtime.DangerInside =
+            false
+
+    end)
+)
+
+
+if GameOver then
+
+    Runtime:
+    AddConnection(
+
+        GameOver.OnClientEvent:
+        Connect(function()
+
+            Runtime.RoundActive =
+                false
+
+
+            Runtime.Action =
+                nil
+
+        end)
+    )
+end
+
+
+if PlayerDataChangedRemote
+    and PlayerDataChangedRemote:IsA(
+        "RemoteEvent"
+    )
+then
+
+    Runtime:
+    AddConnection(
+
+        PlayerDataChangedRemote
+            .OnClientEvent:
+        Connect(function()
+
+            ----------------------------------------------------
+            -- CurrentRoundClient processes the same event.
+            -- Give it one scheduler slice.
+            ----------------------------------------------------
+
+            task.defer(
+                UpdateRoleCache
+            )
+
+        end)
+    )
+end
+
+
+--==============================================================
+-- PLAYER LEAVE
+--==============================================================
+
+Runtime:
+AddConnection(
+
+    Players.PlayerRemoving:
+    Connect(function(player)
+
+        DestroyPlayerESP(
+            player
+        )
+    end)
+)
+
+
+--==============================================================
+-- RESPAWN
+--==============================================================
+
+Runtime:
+AddConnection(
+
+    LocalPlayer.CharacterAdded:
+    Connect(function()
+
+        Runtime.Action =
+            nil
+
+
+        DestroyFly()
+
+        RestoreNoclip()
+
+
+        task.wait(
+            0.8
+        )
+
+
+        ApplySpeed()
+
+
+        if Settings.Noclip then
+            ApplyNoclip()
+        end
+
+
+        if Settings.Fly then
+            SetupFly()
+        end
+
+    end)
+)
+
+
+--==============================================================
+-- PERFORMANCE PRESETS
+--==============================================================
+
+local function SetPerformanceMode(
+    enabled
+)
+
+    Settings.PerformanceMode =
+        enabled
+
+
+    if enabled then
+
+        Settings.ESPInterval =
+            0.45
+
+
+        Settings.GunESPInterval =
+            1.00
+
+
+        Settings.CoinESPInterval =
+            1.75
+
+
+        Settings.MaxCoinESP =
+            18
+
+
+        Settings.WarningInterval =
+            0.28
+
+
+        Notify(
+            "Performance Mode",
+            "ON • lowest background load 🧊",
+            "cpu"
+        )
+
+    else
+
+        Settings.ESPInterval =
+            0.28
+
+
+        Settings.GunESPInterval =
+            0.55
+
+
+        Settings.CoinESPInterval =
+            1.0
+
+
+        Settings.MaxCoinESP =
+            32
+
+
+        Settings.WarningInterval =
+            0.15
+
+
+        Notify(
+            "Performance Mode",
+            "OFF • faster visual updates",
+            "gauge"
+        )
+    end
+end
+
+
+--==============================================================
+-- DIAGNOSTICS
+--==============================================================
+
+local function CountTable(
+    t
+)
+
+    local count = 0
+
+
+    for _ in pairs(t) do
+        count += 1
+    end
+
+
+    return count
+end
+
+
+local function Diagnostics()
+
+    local murderer =
+        Runtime.Murderer
+
+
+    local dropped,
+        _,
+        score =
+        FindDroppedGun(
+            false
+        )
+
+
+    return table.concat({
+
+        "SALTY MM2 "
+            .. VERSION,
+
+        "",
+
+        "=== PERFORMANCE ===",
+
+        "Performance Mode: "
+            .. tostring(
+                Settings.PerformanceMode
+            ),
+
+        "ESP Interval: "
+            .. tostring(
+                Settings.ESPInterval
+            ),
+
+        "Gun ESP Interval: "
+            .. tostring(
+                Settings.GunESPInterval
+            ),
+
+        "Coin ESP Interval: "
+            .. tostring(
+                Settings.CoinESPInterval
+            ),
+
+        "Max Coin ESP: "
+            .. tostring(
+                Settings.MaxCoinESP
+            ),
+
+        "",
+
+        "=== ROLES ===",
+
+        "Role: "
+            .. tostring(
+                Runtime.LocalRole
+            ),
+
+        "Murderer: "
+            .. tostring(
+                murderer
+                and murderer.Name
+                or "None"
+            ),
+
+        "Sheriff: "
+            .. tostring(
+                Runtime.Sheriff
+                and Runtime.Sheriff.Name
+                or "None"
+            ),
+
+        "Hero: "
+            .. tostring(
+                Runtime.Hero
+                and Runtime.Hero.Name
+                or "None"
+            ),
+
+        "Player ESP Objects: "
+            .. tostring(
+                CountTable(
+                    Runtime.PlayerESP
+                )
+            ),
+
+        "",
+
+        "=== GUN ===",
+
+        "Gun Candidates Cached: "
+            .. tostring(
+                CountTable(
+                    Runtime.GunCandidates
+                )
+            ),
+
+        "Dropped Gun: "
+            .. tostring(
+                dropped
+                and dropped.Name
+                or "None"
+            ),
+
+        "Gun Confidence: "
+            .. tostring(
+                score or 0
+            ),
+
+        "Has Gun: "
+            .. tostring(
+                HasGun()
+            ),
+
+        "Shot Requests: "
+            .. tostring(
+                Runtime.ShotRequests
+            ),
+
+        "Last Shot: "
+            .. Runtime.LastShotStatus,
+
+        "Pickup Success: "
+            .. tostring(
+                Runtime.GunPickupSuccess
+            )
+            .. "/"
+            .. tostring(
+                Runtime.GunPickupAttempts
+            ),
+
+        "",
+
+        "=== COINS ===",
+
+        "Cached Coins: "
+            .. tostring(
+                CountTable(
+                    Runtime.Coins
+                )
+            ),
+
+        "Rendered Coin ESP: "
+            .. tostring(
+                CountTable(
+                    Runtime.CoinESPObjects
+                )
+            ),
+
+        "Bag: "
+            .. tostring(
+                Runtime.CoinCurrent
+            )
+            .. "/"
+            .. tostring(
