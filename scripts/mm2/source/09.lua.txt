@@ -1,0 +1,442 @@
+            tonumber(maximum)
+            or Runtime.CoinMaximum
+
+
+        if Runtime.CoinMaximum > 0
+            and Runtime.CoinCurrent
+                >= Runtime.CoinMaximum
+        then
+
+            Runtime.CoinBagFull =
+                true
+        end
+
+    end)
+)
+
+
+--==============================================================
+-- COIN STATE
+--==============================================================
+
+local function CoinUnavailable(
+    coin
+)
+
+    return not coin
+        or not coin.Parent
+        or coin:GetAttribute(
+            "Collected"
+        ) == true
+        or coin:GetAttribute(
+            "Delete"
+        ) == true
+end
+
+
+local function DangerousCoin(
+    coin
+)
+
+    if not Settings.AvoidMurdererCoins then
+        return false
+    end
+
+
+    local murderer =
+        Runtime.Murderer
+
+
+    local murdererRoot =
+        murderer
+        and TargetPart(
+            murderer
+        )
+
+
+    if not murdererRoot then
+        return false
+    end
+
+
+    return (
+        murdererRoot.Position
+        - coin.Position
+    ).Magnitude
+        <= Settings.CoinDangerDistance
+end
+
+
+local function NearestCoin()
+
+    local _,
+        _,
+        root =
+        GetCharacter()
+
+
+    if not root then
+        return nil
+    end
+
+
+    local best =
+        nil
+
+    local bestDistance =
+        math.huge
+
+    local now =
+        os.clock()
+
+
+    local dead = {}
+
+
+    for coin
+    in pairs(
+        Runtime.Coins
+    )
+    do
+
+        if CoinUnavailable(
+            coin
+        )
+        then
+
+            dead[#dead + 1] =
+                coin
+
+        else
+
+            local last =
+                Runtime.VisitedCoins[
+                    coin
+                ]
+
+
+            if (
+                not last
+                or now - last
+                    >= Settings.CoinRetryCooldown
+            )
+                and not DangerousCoin(
+                    coin
+                )
+            then
+
+                local distance =
+                    (
+                        root.Position
+                        - coin.Position
+                    ).Magnitude
+
+
+                if distance < bestDistance then
+
+                    best =
+                        coin
+
+                    bestDistance =
+                        distance
+                end
+            end
+        end
+    end
+
+
+    for _,
+        coin
+    in ipairs(dead)
+    do
+
+        RemoveCoin(
+            coin
+        )
+    end
+
+
+    return best,
+        bestDistance
+end
+
+
+--==============================================================
+-- AUTO COIN
+--==============================================================
+
+local function CollectNearestCoin(
+    notify
+)
+
+    if Runtime.Action
+        or Runtime.CoinBagFull
+        or not CharacterAlive()
+    then
+
+        return false
+    end
+
+
+    local coin =
+        NearestCoin()
+
+
+    if not coin then
+
+        if notify then
+
+            Notify(
+                "Coins",
+
+                Runtime.CoinBagFull
+                    and "Bag full."
+                    or "No safe coin.",
+
+                "circle-help"
+            )
+        end
+
+
+        return false
+    end
+
+
+    Runtime.Action =
+        "Coin"
+
+
+    Runtime.CoinRouteAttempts +=
+        1
+
+
+    Runtime.VisitedCoins[
+        coin
+    ] =
+        os.clock()
+
+
+    local before =
+        Runtime.CoinEvents
+
+
+    MoveOnto(
+        coin,
+        Settings.CoinMoveDelay
+    )
+
+
+    task.wait(
+        0.10
+    )
+
+
+    local confirmed =
+        Runtime.CoinEvents
+        > before
+
+
+    if confirmed then
+
+        Runtime.CoinConfirmed +=
+            1
+    end
+
+
+    Runtime.Action =
+        nil
+
+
+    if notify then
+
+        Notify(
+            "Coin",
+
+            confirmed
+                and "Collected ✓"
+                or "Route completed.",
+
+            "coins"
+        )
+    end
+
+
+    return confirmed
+end
+
+
+task.spawn(function()
+
+    while Runtime.Running do
+
+        if Settings.AutoCoinFarm
+            and not Runtime.Action
+            and not Runtime.CoinBagFull
+            and CharacterAlive()
+        then
+
+            CollectNearestCoin(
+                false
+            )
+        end
+
+
+        task.wait(
+            0.11
+        )
+    end
+end)
+
+
+--==============================================================
+-- LIGHTWEIGHT COIN ESP
+--==============================================================
+
+local function ClearCoinESP()
+
+    for coin,
+        gui
+    in pairs(
+        Runtime.CoinESPObjects
+    )
+    do
+
+        pcall(function()
+            gui:Destroy()
+        end)
+
+
+        Runtime.CoinESPObjects[
+            coin
+        ] =
+            nil
+    end
+end
+
+
+local function MakeCoinESP(
+    coin
+)
+
+    if Runtime.CoinESPObjects[
+        coin
+    ]
+    then
+
+        return
+    end
+
+
+    local gui =
+        Instance.new(
+            "BillboardGui"
+        )
+
+
+    gui.Name =
+        "__SaltyCoin"
+
+
+    gui.Adornee =
+        coin
+
+
+    gui.Size =
+        UDim2.fromOffset(
+            25,
+            25
+        )
+
+
+    gui.AlwaysOnTop =
+        true
+
+
+    gui.MaxDistance =
+        180
+
+
+    gui.Parent =
+        coin
+
+
+    local label =
+        Instance.new(
+            "TextLabel"
+        )
+
+
+    label.BackgroundTransparency =
+        1
+
+
+    label.Size =
+        UDim2.fromScale(
+            1,
+            1
+        )
+
+
+    label.Font =
+        Enum.Font.GothamBold
+
+
+    label.TextSize =
+        18
+
+
+    label.Text =
+        "●"
+
+
+    label.TextColor3 =
+        Color3.fromRGB(
+            255,
+            220,
+            75
+        )
+
+
+    label.TextStrokeTransparency =
+        0.45
+
+
+    label.Parent =
+        gui
+
+
+    Runtime.CoinESPObjects[
+        coin
+    ] =
+        gui
+end
+
+
+local function UpdateCoinESP()
+
+    if not Settings.CoinESP then
+
+        if next(
+            Runtime.CoinESPObjects
+        )
+        then
+
+            ClearCoinESP()
+        end
+
+
+        return
+    end
+
+
+    local _,
+        _,
+        root =
+        GetCharacter()
+
+
+    if not root then
+        return
+    end
+
+
