@@ -1,0 +1,186 @@
+        BorderSizePixel = 0,
+        Text = isFavorite(entry.Id) and "♥" or "♡",
+        TextColor3 = isFavorite(entry.Id) and THEME.AccentBright or Color3.fromHex("#666671"),
+        TextSize = 16,
+        FontFace = font(Enum.FontWeight.Medium),
+        AutoButtonColor = false,
+        ZIndex = zIndex or 5,
+        Parent = parentFrame,
+    }, { corner(5) })
+
+    button.MouseEnter:Connect(function()
+        tween(button, 0.12, { BackgroundTransparency = 0.25, TextColor3 = THEME.AccentBright })
+    end)
+    button.MouseLeave:Connect(function()
+        tween(button, 0.12, {
+            BackgroundTransparency = 1,
+            TextColor3 = isFavorite(entry.Id) and THEME.AccentBright or Color3.fromHex("#666671"),
+        })
+    end)
+    button.MouseButton1Click:Connect(function()
+        setFavorite(entry.Id, not isFavorite(entry.Id))
+        renderContent()
+    end)
+    return button
+end
+
+local function makeLoadButton(parentFrame, entry, size, position, zIndex)
+    local button = create("TextButton", {
+        Position = position,
+        Size = size,
+        BackgroundColor3 = THEME.Accent,
+        BorderSizePixel = 0,
+        Text = "",
+        AutoButtonColor = false,
+        ZIndex = zIndex or 6,
+        Parent = parentFrame,
+    }, { corner(5) })
+
+    local label = create("TextLabel", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        Text = loading[entry.Id] and "◌  Loading..." or loaded[entry.Id] and "✓  Loaded" or "▶  Load Script",
+        TextColor3 = Color3.fromHex("#E7DFF6"),
+        TextSize = size.Y.Offset >= 34 and 10 or 9,
+        FontFace = font(Enum.FontWeight.SemiBold),
+        ZIndex = (zIndex or 6) + 1,
+        Parent = button,
+    })
+
+    if loading[entry.Id] then
+        local spinner = create("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromOffset(10, math.floor(size.Y.Offset / 2)),
+            Size = UDim2.fromOffset(10, 10),
+            BackgroundTransparency = 1,
+            ZIndex = (zIndex or 6) + 2,
+            Parent = button,
+        }, { corner(99), stroke(Color3.fromHex("#E7DFF6"), 0.25, 1) })
+        local cut = create("Frame", {
+            Position = UDim2.fromOffset(5, -1),
+            Size = UDim2.fromOffset(6, 5),
+            BackgroundColor3 = THEME.Accent,
+            BorderSizePixel = 0,
+            ZIndex = (zIndex or 6) + 3,
+            Parent = spinner,
+        })
+        task.spawn(function()
+            while spinner and spinner.Parent and loading[entry.Id] do
+                spinner.Rotation = 0
+                local a = TweenService:Create(spinner, TweenInfo.new(0.7, Enum.EasingStyle.Linear), { Rotation = 360 })
+                a:Play()
+                a.Completed:Wait()
+            end
+        end)
+    end
+
+    button.MouseEnter:Connect(function()
+        if not loading[entry.Id] then
+            tween(button, 0.14, { BackgroundColor3 = THEME.AccentHover })
+        end
+    end)
+    button.MouseLeave:Connect(function()
+        tween(button, 0.14, { BackgroundColor3 = THEME.Accent })
+    end)
+    button.MouseButton1Click:Connect(function()
+        runRemote(entry)
+    end)
+    return button
+end
+
+local function createGridCard(entry, order)
+    local root = create("Frame", {
+        Name = entry.Id,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        LayoutOrder = order,
+    })
+
+    local card = create("Frame", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = THEME.Surface,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Parent = root,
+    }, { corner(11), stroke(Color3.fromRGB(34, 34, 39), 0.08, 1) })
+    local cardStroke = card:FindFirstChildOfClass("UIStroke")
+
+    local image = create("ImageLabel", {
+        Size = UDim2.new(1, 0, 0, 78),
+        BackgroundColor3 = Color3.fromHex("#111116"),
+        BorderSizePixel = 0,
+        Image = "",
+        ImageTransparency = 1,
+        ImageColor3 = Color3.fromRGB(190, 190, 198),
+        ScaleType = Enum.ScaleType.Crop,
+        Parent = card,
+    })
+    setRemoteImage(image, entry.ImageUrl, entry.ImageCache)
+
+    create("Frame", {
+        Position = UDim2.fromOffset(0, 77),
+        Size = UDim2.new(1, 0, 0, 1),
+        BackgroundColor3 = Color3.fromRGB(30, 30, 35),
+        BackgroundTransparency = 0.45,
+        BorderSizePixel = 0,
+        Parent = card,
+    })
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(12, 88),
+        Size = UDim2.fromOffset(150, 11),
+        BackgroundTransparency = 1,
+        Text = entry.Category,
+        TextColor3 = Color3.fromHex("#8870B5"),
+        TextSize = 8,
+        FontFace = font(Enum.FontWeight.Bold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = card,
+    })
+
+    makeHeartButton(card, entry, UDim2.new(1, -9, 0, 84), 8)
+
+    local title = create("TextLabel", {
+        Position = UDim2.fromOffset(12, 105),
+        Size = UDim2.new(1, -24, 0, 18),
+        BackgroundTransparency = 1,
+        Text = entry.Name,
+        TextColor3 = Color3.fromHex("#EEEEF1"),
+        TextSize = 13,
+        FontFace = font(Enum.FontWeight.SemiBold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = card,
+    })
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(12, 125),
+        Size = UDim2.new(1, -103, 0, 14),
+        BackgroundTransparency = 1,
+        Text = entry.Game,
+        TextColor3 = Color3.fromHex("#6D6D77"),
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Regular),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        Parent = card,
+    })
+
+    makeLoadButton(card, entry, UDim2.fromOffset(81, 27), UDim2.new(1, -93, 1, -35), 7)
+
+    local clickLayer = create("TextButton", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Text = "",
+        AutoButtonColor = false,
+        ZIndex = 3,
+        Parent = card,
+    })
+
+    -- Keep action buttons above click layer.
+    for _, child in ipairs(card:GetChildren()) do
+        if child:IsA("TextButton") and child ~= clickLayer then
+            child.ZIndex = math.max(child.ZIndex, 8)
+        end
+    end
+
