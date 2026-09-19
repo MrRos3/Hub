@@ -1,0 +1,406 @@
+            lines[#lines + 1] = ("Mission: %s • %s/%s%s")
+                :format(
+                    tostring(mission.MainText or mission.Mission or "?"),
+                    tostring(mission.CurrentPart or 0),
+                    tostring(mission.MaxParts or "?"),
+                    mission.Completed == true and " • COMPLETE" or ""
+                )
+        else
+            lines[#lines + 1] = "Mission: waiting for mission data"
+        end
+    else
+        local nextLevel = STORY_NEXT[key]
+        lines[#lines + 1] = "Next: " .. tostring(nextLevel ~= nil and nextLevel or "?")
+    end
+
+    return table.concat(lines, "\\n")
+end
+
+local function fireEscapedIntermission()
+    if QuickEvent and QuickEvent:IsA("RemoteEvent") then
+        QuickEvent:FireServer("EascapedIntermission", "Escaped!", "")
+    end
+end
+
+local function getLobbyScreen()
+    local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+    return playerGui and playerGui:FindFirstChild("LobbyScreen") or nil
+end
+
+local function isActiveStoryRun()
+    if not IS_GAMEPLAY_PLACE or currentGameMode() == "Main" then
+        return false
+    end
+
+    local lobbyScreen = getLobbyScreen()
+    if lobbyScreen and lobbyScreen.Enabled then
+        return false
+    end
+
+    local char = character()
+    local state = char and char:FindFirstChild("State")
+
+    if state and (state.Value == "Died" or state.Value == "Dead") then
+        return false
+    end
+
+    return true
+end
+
+local function restoreStoryTransitionView()
+    local char = character()
+    local hum = humanoid()
+    local camera = workspace.CurrentCamera
+    local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+
+    -- Level 0's ending cutscene creates this blur and changes FOV/camera state.
+    local blur = Lighting:FindFirstChild("Level0ExitCutSceneBlur")
+    if blur then
+        pcall(function()
+            blur:Destroy()
+        end)
+    end
+
+    if camera then
+        pcall(function()
+            camera.FieldOfView = 75
+            camera.CameraType = Enum.CameraType.Custom
+
+            if char then
+                local head = char:FindFirstChild("Head")
+                local headCamera = head and head:FindFirstChild("HeadCameraPart")
+
+                camera.CameraSubject = headCamera or hum or head
+            elseif hum then
+                camera.CameraSubject = hum
+            end
+        end)
+    end
+
+    if hum then
+        pcall(function()
+            hum.AutoRotate = true
+        end)
+    end
+
+    if playerGui then
+        local lobbyScreen = playerGui:FindFirstChild("LobbyScreen")
+        if lobbyScreen then
+            lobbyScreen.Enabled = true
+        end
+
+        local levelsGui = playerGui:FindFirstChild("Levels")
+        if levelsGui then
+            for _, object in ipairs(levelsGui:GetDescendants()) do
+                if object.Name == "BlackScreen" then
+                    if object:IsA("ScreenGui") then
+                        object.Enabled = false
+                    elseif object:IsA("GuiObject") then
+                        object.Visible = false
+                    end
+                elseif object:IsA("Frame")
+                    and object.Parent
+                    and object.Parent.Name == "BlackScreen"
+                then
+                    object.BackgroundTransparency = 1
+                end
+            end
+        end
+    end
+end
+
+local function finishStoryTransition(key)
+    -- Give the server a tiny moment to process CompleteLevel first.
+    task.delay(0.18, function()
+        if not State.Running then
+            return
+        end
+
+        restoreStoryTransitionView()
+
+        -- Most Story finishes return through this intermission action.
+        -- Sending it after the completion request prevents the client from
+        -- remaining trapped in a cutscene/black-screen transition.
+        if key ~= "Level4.1" then
+            fireEscapedIntermission()
+        end
+    end)
+
+    task.delay(1.1, function()
+        if State.Running then
+            restoreStoryTransitionView()
+            State.StoryCompleting = false
+        end
+    end)
+end
+
+local function instantCompleteStory(showNotice)
+    if not IS_GAMEPLAY_PLACE then
+        if showNotice then
+            notify("Story", "Enter an actual Story level first.", "map-pin")
+        end
+        return false, "not gameplay"
+    end
+
+    if not QuickEvent or not QuickEvent:IsA("RemoteEvent") then
+        if showNotice then
+            notify("Story", "QuickEvent is unavailable.", "circle-x")
+        end
+        return false, "no remote"
+    end
+
+    if not isActiveStoryRun() then
+        if showNotice then
+            notify("Story", "No active Story run detected.", "circle-help")
+        end
+        return false, "not active"
+    end
+
+    if State.StoryCompleting then
+        if showNotice then
+            notify("Story", "A Story completion is already being processed.", "loader-circle")
+        end
+        return false, "busy"
+    end
+
+    local key = normalizeCurrentLevel()
+    local nextLevel = key and STORY_NEXT[key]
+
+    if not key or nextLevel == nil then
+        if showNotice then
+            notify(
+                "Story",
+                "This level is not in Salty's confirmed Story chain: " .. tostring(key),
+                "circle-help"
+            )
+        end
+        return false, "unknown level"
+    end
+
+    -- Auto mode must never hammer the same level repeatedly while its
+    -- completion transition is still active.
+    if not showNotice and State.LastStoryKey == key then
+        return false, "already attempted"
+    end
+
+    State.StoryCompleting = true
+    State.LastStoryAttempt = os.clock()
+    State.LastStoryKey = key
+
+    -- Match extra server actions used by the game's actual finish handlers.
+    if key == "Level0.5" then
+        QuickEvent:FireServer("lvl0.5PlayerEascaped", LocalPlayer)
+    elseif key == "Level4" then
+        QuickEvent:FireServer("Level4Completed")
+    end
+
+    QuickEvent:FireServer("CompleteLevel", nextLevel)
+
+    if key == "Level0" then
+        local levels = Events:FindFirstChild("Levels")
+        local level0 = levels and levels:FindFirstChild("Level0")
+        local event = level0 and level0:FindFirstChild("Level0Event")
+
+        if event and event:IsA("RemoteEvent") then
+            task.delay(0.06, function()
+                if State.Running then
+                    event:FireServer("EndedLastCutScene")
+                end
+            end)
+        end
+    elseif key == "Level4.1" then
+        local levelModules = ReplicatedStorage:FindFirstChild("Modules")
+        local levels = levelModules and levelModules:FindFirstChild("Levels")
+        local level4 = levels and levels:FindFirstChild("Level4")
+        local dayController = level4 and level4:FindFirstChild("DayController")
+        local dayEvent = dayController and dayController:FindFirstChild("DayControllerEvent")
+
+        if dayEvent and dayEvent:IsA("RemoteEvent") then
+            task.delay(0.06, function()
+                if State.Running then
+                    dayEvent:FireServer("EndedLevel")
+                end
+            end)
+        end
+    end
+
+    finishStoryTransition(key)
+
+    if showNotice then
+        local nextText = nextLevel == "" and "END" or nextLevel
+        notify("Story", ("%s → %s completion sent."):format(key, nextText), "badge-check")
+    end
+
+    return true
+end
+
+local function endlessMissionStatusText()
+    if not IS_GAMEPLAY_PLACE then
+        return "Enter Endless in the gameplay place to use mission automation."
+    end
+
+    if currentGameMode() ~= "Main" then
+        return "Not currently in Endless mode."
+    end
+
+    local data = State.CurrentMissionData
+    if type(data) ~= "table" then
+        return "Waiting for the game's UpdateMission data..."
+    end
+
+    return ("%s\\nProgress: %s/%s\\nCompleted: %s")
+        :format(
+            tostring(data.MainText or data.Mission or "Current mission"),
+            tostring(data.CurrentPart or 0),
+            tostring(data.MaxParts or "?"),
+            tostring(data.Completed == true)
+        )
+end
+
+local function startEndlessMission(showNotice)
+    if not Monitor or not Monitor:IsA("RemoteEvent") then
+        if showNotice then
+            notify("Endless", "Monitor remote is unavailable.", "circle-x")
+        end
+        return false
+    end
+
+    Monitor:FireServer("ClickedStartMission")
+
+    if showNotice then
+        notify("Endless", "Start mission request sent.", "play")
+    end
+
+    return true
+end
+
+local function finishEndlessMission(showNotice)
+    if not Monitor or not Monitor:IsA("RemoteEvent") then
+        if showNotice then
+            notify("Endless", "Monitor remote is unavailable.", "circle-x")
+        end
+        return false
+    end
+
+    Monitor:FireServer("FinishMission")
+
+    if showNotice then
+        notify(
+            "Endless",
+            "FinishMission request sent. The server still decides whether the mission is valid.",
+            "flag"
+        )
+    end
+
+    return true
+end
+
+local function triggerMissionPromptsOnce(showNotice)
+    if not ProximityPromt or not ProximityPromt:IsA("RemoteEvent") then
+        if showNotice then
+            notify("Endless", "ProximityPromt remote is unavailable.", "circle-x")
+        end
+        return 0
+    end
+
+    local generated = workspace:FindFirstChild("Generated")
+    local missions = generated and generated:FindFirstChild("Missions")
+
+    if not missions then
+        if showNotice then
+            notify("Endless", "No generated mission folder exists yet.", "scan")
+        end
+        return 0
+    end
+
+    local now = os.clock()
+    local fired = 0
+
+    for _, object in ipairs(missions:GetDescendants()) do
+        if object:IsA("ProximityPrompt") and object.Enabled then
+            local last = State.PromptAttempts[object] or 0
+
+            if now - last >= 0.8 then
+                State.PromptAttempts[object] = now
+                ProximityPromt:FireServer(
+                    "Triggered",
+                    object,
+                    Enum.ProximityPromptInputType.Keyboard
+                )
+
+                task.delay(0.04, function()
+                    if State.Running
+                        and ProximityPromt
+                        and ProximityPromt.Parent
+                        and object
+                        and object.Parent
+                    then
+                        ProximityPromt:FireServer(
+                            "TriggeredEnded",
+                            object,
+                            Enum.ProximityPromptInputType.Keyboard
+                        )
+                    end
+                end)
+
+                fired += 1
+            end
+        end
+    end
+
+    if showNotice then
+        notify(
+            "Endless",
+            fired > 0
+                and ("Triggered %d mission prompt(s)."):format(fired)
+                or "No enabled mission prompts found.",
+            fired > 0 and "zap" or "scan"
+        )
+    end
+
+    return fired
+end
+
+local function fireMissionPrompt(prompt)
+    if not ProximityPromt
+        or not ProximityPromt:IsA("RemoteEvent")
+        or not prompt
+        or not prompt.Parent
+        or not prompt:IsA("ProximityPrompt")
+    then
+        return false
+    end
+
+    ProximityPromt:FireServer(
+        "Triggered",
+        prompt,
+        Enum.ProximityPromptInputType.Keyboard
+    )
+
+    task.delay(0.035, function()
+        if State.Running
+            and ProximityPromt
+            and ProximityPromt.Parent
+            and prompt
+            and prompt.Parent
+        then
+            ProximityPromt:FireServer(
+                "TriggeredEnded",
+                prompt,
+                Enum.ProximityPromptInputType.Keyboard
+            )
+        end
+    end)
+
+    return true
+end
+
+local function triggerPromptsIn(container)
+    if not container then
+        return 0
+    end
+
+    local fired = 0
+
+    for _, object in ipairs(container:GetDescendants()) do
+        if object:IsA("ProximityPrompt") and object.Enabled then

@@ -1,0 +1,406 @@
+    Callback = function(value)
+        State.UnknownNPCs = value
+        if State.ThreatESP then
+            clearEsp("Threat")
+        end
+    end,
+})
+
+Visuals:Toggle({
+    Title = "Show ESP distance",
+    Desc = "Shows distance in studs next to ESP labels.",
+    Value = true,
+    Callback = function(value)
+        State.EspDistance = value
+    end,
+})
+
+Visuals:Slider({
+    Title = "ESP max distance",
+    Desc = "ESP farther than this distance is hidden.",
+    Value = {
+        Min = 100,
+        Max = 5000,
+        Default = State.EspMaxDistance,
+    },
+    Step = 50,
+    Callback = function(value)
+        State.EspMaxDistance = value
+    end,
+})
+
+Visuals:Toggle({
+    Title = "Fullbright",
+    Desc = "Brightens dark Backrooms areas locally and restores the original lighting when disabled.",
+    Value = false,
+    Callback = function(value)
+        State.Fullbright = value
+        if value then
+            applyFullbright()
+        else
+            restoreLighting()
+        end
+    end,
+})
+
+Visuals:Toggle({
+    Title = "Keep objective visible",
+    Desc = "Keeps the game's own Objective panel visible when it exists.",
+    Value = false,
+    Callback = function(value)
+        State.KeepObjectiveVisible = value
+    end,
+})
+
+local DailyParagraph = Tasks:Paragraph({
+    Title = "Daily task status",
+    Desc = "Waiting for DailyTasksData...",
+    Icon = "list-checks",
+})
+
+Tasks:Button({
+    Title = "Request daily tasks",
+    Desc = "Uses DailyTasks:FireServer(\"RequestTasks\").",
+    Icon = "refresh-cw",
+    Callback = function()
+        requestDailyTasks(true)
+    end,
+})
+
+Tasks:Button({
+    Title = "Claim ready rewards",
+    Desc = "Claims Task 1-3 only when Completed=1 and Claimed is not set.",
+    Icon = "gift",
+    Callback = function()
+        claimCompletedDailies(true)
+        task.delay(0.5, function()
+            if State.Running then
+                DailyParagraph:SetDesc(dailyStatusText())
+            end
+        end)
+    end,
+})
+
+Tasks:Slider({
+    Title = "Auto claim interval",
+    Desc = "Seconds between checks for completed daily tasks.",
+    Value = {
+        Min = 2,
+        Max = 15,
+        Default = State.DailyInterval,
+    },
+    Step = 0.5,
+    Callback = function(value)
+        State.DailyInterval = value
+    end,
+})
+
+Tasks:Toggle({
+    Title = "Auto claim completed tasks",
+    Desc = "Periodically claims only rewards the game has already marked complete.",
+    Value = false,
+    Callback = function(value)
+        State.AutoDaily = value
+        if value then
+            requestDailyTasks(false)
+            task.spawn(function()
+                claimCompletedDailies(false)
+            end)
+        end
+    end,
+})
+
+local StoryParagraph = Levels:Paragraph({
+    Title = "Story",
+    Desc = IS_GAMEPLAY_PLACE and gameplayStatusText() or storyProgressText(State.StoryMode),
+    Icon = "route",
+})
+
+local EndlessParagraph = Levels:Paragraph({
+    Title = "Endless mission",
+    Desc = endlessMissionStatusText(),
+    Icon = "infinity",
+})
+
+Levels:Button({
+    Title = "Instant Complete Current Story",
+    Desc = "Uses the same CompleteLevel chain found in the game's real level exit scripts.",
+    Icon = "badge-check",
+    Callback = function()
+        instantCompleteStory(true)
+        task.delay(0.3, function()
+            if State.Running then
+                StoryParagraph:SetDesc(
+                    IS_GAMEPLAY_PLACE and gameplayStatusText() or storyProgressText(State.StoryMode)
+                )
+            end
+        end)
+    end,
+})
+
+Levels:Button({
+    Title = "Unstick Story Transition",
+    Desc = "Restores camera/FOV, removes Level 0 cutscene blur, and returns the Story UI to the intermission screen.",
+    Icon = "refresh-ccw",
+    Callback = function()
+        State.StoryCompleting = false
+        restoreStoryTransitionView()
+        fireEscapedIntermission()
+        notify("Story", "Story transition view restored.", "refresh-ccw")
+    end,
+})
+
+Levels:Slider({
+    Title = "Auto Story delay",
+    Desc = "Seconds between Story completion attempts while Auto Complete Story is enabled.",
+    Value = {
+        Min = 0.6,
+        Max = 5,
+        Default = State.StoryCompleteDelay,
+    },
+    Step = 0.1,
+    Callback = function(value)
+        State.StoryCompleteDelay = value
+    end,
+})
+
+Levels:Toggle({
+    Title = "Auto Complete Story",
+    Desc = "Automatically advances through the current Story chain using the game's CompleteLevel requests.",
+    Value = false,
+    Callback = function(value)
+        State.AutoStoryComplete = value
+        State.LastStoryAttempt = 0
+        State.LastStoryKey = nil
+
+        notify(
+            "Story",
+            value and "Auto Complete Story enabled." or "Auto Complete Story disabled.",
+            value and "badge-check" or "square"
+        )
+    end,
+})
+
+Levels:Button({
+    Title = "Start Endless Mission",
+    Desc = "Sends the game's ClickedStartMission monitor action.",
+    Icon = "play",
+    Callback = function()
+        startEndlessMission(true)
+    end,
+})
+
+Levels:Button({
+    Title = "Try Instant Finish Endless",
+    Desc = "Sends FinishMission immediately. If the server validates progress, it will wait until the mission is actually complete.",
+    Icon = "flag",
+    Callback = function()
+        finishEndlessMission(true)
+    end,
+})
+
+Levels:Button({
+    Title = "Run Endless Task Pass",
+    Desc = "Runs Salty's full mission worker: prompts, Explore zones, upload/scanner stations, and Rescue Wanderer routing.",
+    Icon = "zap",
+    Callback = function()
+        task.spawn(function()
+            runEndlessTaskPass(true)
+        end)
+    end,
+})
+
+Levels:Toggle({
+    Title = "Auto Complete Endless",
+    Desc = "Actually works through Endless tasks: prompt missions, Explore hitboxes, Upload/Scan progress + minigames, Rescue Wanderer, then finishes the completed mission.",
+    Value = false,
+    Callback = function(value)
+        State.AutoCompleteEndless = value
+        State.AutoMissionPrompts = value
+        State.AutoUploadMinigame = value
+        State.AutoFinishEndless = value
+
+        if value then
+            task.spawn(function()
+                triggerMissionPromptsOnce(false)
+            end)
+        end
+
+        notify(
+            "Endless",
+            value and "Auto Complete Endless enabled." or "Auto Complete Endless disabled.",
+            value and "infinity" or "square"
+        )
+    end,
+})
+
+local InitialItemValues = dropdownValuesForRunItems()
+
+local ItemsParagraph = ItemsTab:Paragraph({
+    Title = "Game items",
+    Desc = runItemsText(InitialItemValues[1]),
+    Icon = "package",
+})
+
+local ItemsDropdown
+ItemsDropdown = ItemsTab:Dropdown({
+    Title = "Item",
+    Desc = "All item keys exposed by ReplicatedStorage.Modules.Items.Items, plus confirmed fallbacks such as Medkit, Fuse and Lantern.",
+    Values = InitialItemValues,
+    Value = InitialItemValues[1],
+    SearchBarEnabled = true,
+    MenuWidth = 280,
+    Callback = function(value)
+        State.SelectedRunItem = value
+        ItemsParagraph:SetDesc(runItemsText(value))
+    end,
+})
+
+State.SelectedRunItem = InitialItemValues[1]
+
+local function refreshRunItemsUi(showNotice)
+    local previous = selectedRunItemRecord(State.SelectedRunItem)
+    local previousKey = previous and previous.Key or nil
+
+    ItemsModule = nil
+    local values = dropdownValuesForRunItems()
+    local selected = values[1]
+
+    if previousKey then
+        for _, value in ipairs(values) do
+            if value.Key == previousKey then
+                selected = value
+                break
+            end
+        end
+    end
+
+    State.SelectedRunItem = selected
+
+    if ItemsDropdown then
+        ItemsDropdown:Refresh(values)
+        if selected then
+            ItemsDropdown:Select(selected)
+        end
+    end
+
+    ItemsParagraph:SetDesc(runItemsText(selected))
+
+    if showNotice then
+        notify("Items", ("Loaded %d item key(s) from the game."):format(#values), "refresh-cw")
+    end
+end
+
+ItemsTab:Button({
+    Title = "Give Selected Item",
+    Desc = "Uses the working Shadow Network item-spoofer path by writing the exact game item key into Player.Equipped.Current.",
+    Icon = "package-plus",
+    Callback = function()
+        getSelectedRunItem(true)
+        ItemsParagraph:SetDesc(runItemsText(State.SelectedRunItem))
+    end,
+})
+
+ItemsTab:Button({
+    Title = "Give All Items",
+    Desc = "Cycles every discovered game item key through Equipped.Current.",
+    Icon = "package-open",
+    Callback = function()
+        task.spawn(function()
+            local items = discoverRunItems()
+            local count = 0
+
+            for _, item in ipairs(items) do
+                if not State.Running then
+                    break
+                end
+
+                if giveRunItem(item, false) then
+                    count += 1
+                end
+
+                task.wait(0.05)
+            end
+
+            notify(
+                "Items",
+                count > 0 and ("Gave/cycled %d item(s)."):format(count) or "No item keys were accepted.",
+                count > 0 and "package-check" or "circle-x"
+            )
+        end)
+    end,
+})
+
+ItemsTab:Button({
+    Title = "Refresh Item List",
+    Desc = "Reloads ReplicatedStorage.Modules.Items.Items and rebuilds the dropdown from the game's actual item keys.",
+    Icon = "refresh-cw",
+    Callback = function()
+        refreshRunItemsUi(true)
+    end,
+})
+
+Utility:Button({
+    Title = "Clear all ESP",
+    Desc = "Destroys every Salty highlight and label.",
+    Icon = "eraser",
+    Callback = function()
+        State.PlayerESP = false
+        State.ThreatESP = false
+        clearEsp()
+        notify("ESP", "All ESP objects cleared.", "eraser")
+    end,
+})
+
+Utility:Button({
+    Title = "Disable Salty features",
+    Desc = "Disables movement, ESP, fullbright, objective lock, and auto daily without closing the UI.",
+    Icon = "circle-stop",
+    Callback = function()
+        State.SpeedEnabled = false
+        State.Noclip = false
+        State.PlayerESP = false
+        State.ThreatESP = false
+        State.Fullbright = false
+        State.KeepObjectiveVisible = false
+        State.AutoDaily = false
+        State.AutoStoryQueue = false
+        State.AutoEndlessLaunch = false
+        State.AutoStoryComplete = false
+        State.AutoCompleteEndless = false
+        State.AutoMissionPrompts = false
+        State.AutoUploadMinigame = false
+        State.AutoFinishEndless = false
+        State.EndlessWorkerBusy = false
+
+        applySpeedAssist(false)
+        restoreCollisions()
+        restoreLighting()
+        clearEsp()
+
+        notify("Salty", "All active features disabled.", "circle-stop")
+    end,
+})
+
+if InventoryEvent and InventoryEvent:IsA("RemoteEvent") then
+    connect(InventoryEvent.OnClientEvent, function(action, data)
+        if action == "UpdateGadgetsInventory" and type(data) == "table" then
+            State.GadgetInventory = data
+
+            if ItemsParagraph then
+                refreshRunItemsUi(false)
+            end
+        elseif action == "UpdateGadgetsShop" and type(data) == "table" then
+            State.GadgetShop = data
+
+            if ItemsParagraph then
+                refreshRunItemsUi(false)
+            end
+        end
+    end)
+end
+
+if MissionsRemote and MissionsRemote:IsA("RemoteEvent") then
+    connect(MissionsRemote.OnClientEvent, function(action, data)
+        if action ~= "UpdateMission" or type(data) ~= "table" then
+            return

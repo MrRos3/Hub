@@ -1,0 +1,406 @@
+    Lighting.Ambient = Color3.fromRGB(190, 190, 190)
+    Lighting.OutdoorAmbient = Color3.fromRGB(190, 190, 190)
+    Lighting.ExposureCompensation = 0.35
+end
+
+local function restoreLighting()
+    local original = State.OriginalLighting
+    if not original then
+        return
+    end
+
+    pcall(function()
+        Lighting.Brightness = original.Brightness
+        Lighting.ClockTime = original.ClockTime
+        Lighting.FogEnd = original.FogEnd
+        Lighting.GlobalShadows = original.GlobalShadows
+        Lighting.Ambient = original.Ambient
+        Lighting.OutdoorAmbient = original.OutdoorAmbient
+        Lighting.ExposureCompensation = original.ExposureCompensation
+    end)
+
+    State.OriginalLighting = nil
+end
+
+local function getObjectiveContainer()
+    local gui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+    local mainLeft = gui and gui:FindFirstChild("MainLeft")
+    return mainLeft and mainLeft:FindFirstChild("Objective") or nil
+end
+
+local function cleanText(value)
+    if type(value) ~= "string" then
+        return nil
+    end
+
+    local text = value:gsub("<.->", "")
+    text = text:gsub("%s+", " ")
+    text = text:match("^%s*(.-)%s*$") or ""
+
+    if text == "" then
+        return nil
+    end
+
+    return text
+end
+
+local function getObjectiveText()
+    local objective = getObjectiveContainer()
+    if not objective then
+        return "No objective UI found yet."
+    end
+
+    local seen = {}
+    local lines = {}
+
+    for _, object in ipairs(objective:GetDescendants()) do
+        if object:IsA("TextLabel") or object:IsA("TextButton") then
+            local text = cleanText(object.Text)
+            if text and not seen[text] then
+                seen[text] = true
+                lines[#lines + 1] = text
+            end
+        end
+    end
+
+    if #lines == 0 then
+        return objective.Visible and "Objective panel is visible, but no readable text is exposed." or "Objective panel is hidden."
+    end
+
+    return table.concat(lines, "\n")
+end
+
+local function getLevelInfo()
+    local levelData = LocalPlayer:FindFirstChild("LevelData")
+    local level = levelData and levelData:FindFirstChild("Level")
+    local exp = levelData and levelData:FindFirstChild("Exp")
+
+    return level and level.Value or nil, exp and exp.Value or nil
+end
+
+local function getGroupRole()
+    local groups = ReplicatedStorage:FindFirstChild("Groups")
+    if not groups then
+        return nil, nil
+    end
+
+    for _, group in ipairs(groups:GetChildren()) do
+        for _, object in ipairs(group:GetChildren()) do
+            if object:IsA("ObjectValue") and object.Value == LocalPlayer then
+                return group, object.Name
+            end
+        end
+    end
+
+    return nil, nil
+end
+
+local function getLevelCompletedData()
+    return LocalPlayer:FindFirstChild("LevelCompletedData")
+end
+
+local function getStoryLevels(mode)
+    if type(TypesAndModes) ~= "table"
+        or type(TypesAndModes.GameTypes) ~= "table"
+    then
+        return {}
+    end
+
+    local bucket = TypesAndModes.GameTypes[mode or State.StoryMode]
+    if type(bucket) ~= "table" or type(bucket.Children) ~= "table" then
+        return {}
+    end
+
+    return bucket.Children
+end
+
+local function completionObjectFor(level, mode)
+    local folder = getLevelCompletedData()
+    if not folder or not level then
+        return nil
+    end
+
+    local prefix = mode == "Hardcore" and "Hard" or ""
+
+    local byName = folder:FindFirstChild(prefix .. tostring(level.DisplayName))
+    if byName then
+        return byName
+    end
+
+    if level.LevelCode ~= nil then
+        return folder:FindFirstChild(prefix .. "Level " .. tostring(level.LevelCode))
+    end
+
+    return nil
+end
+
+local function isStoryLevelCompleted(level, mode)
+    if level and level.Beatable == false then
+        return true
+    end
+
+    local object = completionObjectFor(level, mode)
+    return object ~= nil and tonumber(object.Value) ~= nil and tonumber(object.Value) >= 1
+end
+
+local function canPlayStoryLevel(level, mode)
+    if not level or level.Playable ~= true then
+        return false
+    end
+
+    if type(CanPlayLevel) == "table" and type(CanPlayLevel.CheckLevel) == "function" then
+        local ok, result = pcall(CanPlayLevel.CheckLevel, LocalPlayer, level.LevelCode, mode)
+        if ok then
+            return result == true
+        end
+    end
+
+    -- If the helper cannot be required, Level 0 is the only safe first-level fallback.
+    return tonumber(level.LevelCode) == 0
+end
+
+local function nextIncompleteStoryLevel(mode)
+    mode = mode or State.StoryMode
+
+    local levels = getStoryLevels(mode)
+    for _, level in ipairs(levels) do
+        if level.Playable == true
+            and level.Beatable ~= false
+            and not isStoryLevelCompleted(level, mode)
+            and canPlayStoryLevel(level, mode)
+        then
+            return level
+        end
+    end
+
+    return nil
+end
+
+local function storyProgressText(mode)
+    mode = mode or State.StoryMode
+    local levels = getStoryLevels(mode)
+
+    if #levels == 0 then
+        return "Story level data is unavailable."
+    end
+
+    local completed = 0
+    local beatable = 0
+    local nextLevel = nil
+
+    for _, level in ipairs(levels) do
+        if level.Playable == true and level.Beatable ~= false then
+            beatable += 1
+
+            if isStoryLevelCompleted(level, mode) then
+                completed += 1
+            elseif not nextLevel and canPlayStoryLevel(level, mode) then
+                nextLevel = level
+            end
+        end
+    end
+
+    local nextName = nextLevel and nextLevel.DisplayName or "none"
+    return ("%s Story • %d/%d completed\nNext unlocked unfinished: %s")
+        :format(mode, completed, beatable, tostring(nextName))
+end
+
+local function canStartSelectedLevel()
+    local _, role = getGroupRole()
+    return role == "Leader"
+end
+
+local function selectLevel(mode, level, showNotice)
+    if not QuickEvent or not QuickEvent:IsA("RemoteEvent") then
+        if showNotice then
+            notify("Levels", "QuickEvent is unavailable.", "circle-x")
+        end
+        return false
+    end
+
+    if not level then
+        if showNotice then
+            notify("Levels", "No valid level was found.", "circle-x")
+        end
+        return false
+    end
+
+    QuickEvent:FireServer(
+        "ChangeGameMode",
+        mode,
+        level.Name,
+        level.DisplayName
+    )
+
+    State.LastSelectedLevel = level
+    State.LastLevelLaunch = os.clock()
+
+    if showNotice then
+        notify(
+            "Levels",
+            ("Selected %s • %s."):format(mode, tostring(level.DisplayName)),
+            "route"
+        )
+    end
+
+    return true
+end
+
+local function selectNextStory(showNotice)
+    local level = nextIncompleteStoryLevel(State.StoryMode)
+
+    if not level then
+        if showNotice then
+            notify(
+                "Story",
+                "No unlocked unfinished Story level was found.",
+                "badge-check"
+            )
+        end
+        return nil
+    end
+
+    if selectLevel(State.StoryMode, level, showNotice) then
+        return level
+    end
+
+    return nil
+end
+
+local function selectEndless(showNotice)
+    if not QuickEvent or not QuickEvent:IsA("RemoteEvent") then
+        if showNotice then
+            notify("Endless", "QuickEvent is unavailable.", "circle-x")
+        end
+        return false
+    end
+
+    -- TypesAndModes.GameTypes.Main contains the Endless base entry:
+    -- Title="Main", Name="Main", DisplayName="Base".
+    QuickEvent:FireServer("ChangeGameMode", "Main", "Main", "Base")
+    State.LastSelectedLevel = {
+        Name = "Main",
+        DisplayName = "Base",
+        Beatable = false,
+    }
+    State.LastLevelLaunch = os.clock()
+
+    if showNotice then
+        notify("Endless", "Selected Endless • Base.", "infinity")
+    end
+
+    return true
+end
+
+local function startSelectedLevel(showNotice)
+    if not QuickEvent or not QuickEvent:IsA("RemoteEvent") then
+        if showNotice then
+            notify("Levels", "QuickEvent is unavailable.", "circle-x")
+        end
+        return false
+    end
+
+    if not canStartSelectedLevel() then
+        if showNotice then
+            notify(
+                "Levels",
+                "The game only accepts PlayGame from the current group Leader.",
+                "shield"
+            )
+        end
+        return false
+    end
+
+    QuickEvent:FireServer("PlayGame")
+    State.LastLevelLaunch = os.clock()
+
+    if showNotice then
+        notify("Levels", "PlayGame request sent.", "play")
+    end
+
+    return true
+end
+
+local function queueNextStory(showNotice)
+    local level = selectNextStory(showNotice)
+    if not level then
+        return false
+    end
+
+    task.wait(0.15)
+    return startSelectedLevel(showNotice)
+end
+
+local function queueEndless(showNotice)
+    if not selectEndless(showNotice) then
+        return false
+    end
+
+    task.wait(0.15)
+    return startSelectedLevel(showNotice)
+end
+
+local STORY_NEXT = {
+    Level0 = "Level0.5",
+    ["Level0.5"] = "Level1",
+    Level1 = "Level2",
+    Level2 = "Level3",
+    Level3 = "Level283",
+    Level283 = "Level847",
+    Level847 = "Level4",
+    Level4 = "Level4.1",
+    ["Level4.1"] = "",
+}
+
+-- v1.3.3: Items are no longer hardcoded. The real server-provided shop and
+-- inventory records are discovered at runtime so Salty only shows items that
+-- actually exist in the current game build.
+
+local function currentLevelObjects()
+    local settings = ReplicatedStorage:FindFirstChild("LevelSettings")
+    local current = settings and settings:FindFirstChild("CurrentLevel")
+    local mode = current and current:FindFirstChild("GameMode")
+    return current, mode
+end
+
+local function normalizeCurrentLevel()
+    local current = currentLevelObjects()
+    if not current then
+        return nil
+    end
+
+    local raw = tostring(current.Value)
+
+    if raw:sub(1, 5) == "Level" then
+        return raw
+    end
+
+    local number = tonumber(raw)
+    if number ~= nil then
+        return "Level" .. tostring(number)
+    end
+
+    return raw ~= "" and raw or nil
+end
+
+local function currentGameMode()
+    local _, mode = currentLevelObjects()
+    return mode and tostring(mode.Value) or nil
+end
+
+local function gameplayStatusText()
+    if not IS_GAMEPLAY_PLACE then
+        return "Lobby place • enter a Story or Endless run for gameplay tools."
+    end
+
+    local key = normalizeCurrentLevel() or "?"
+    local mode = currentGameMode() or "?"
+    local mission = State.CurrentMissionData
+
+    local lines = {
+        "Mode: " .. mode,
+        "Current level: " .. key,
+    }
+
+    if mode == "Main" then
+        if type(mission) == "table" then

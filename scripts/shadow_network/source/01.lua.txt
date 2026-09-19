@@ -1,0 +1,406 @@
+--[[
+    SALTY // SHADOW NETWORK // ACTUAL ITEM SPOOFER
+    Supported PlaceIds: 14776071100 (Lobby), 14776084615 (Gameplay)
+    UI: VantaUI by MrRos3
+
+    Whole-file build.
+    VantaUI runtime is loaded as-is from the public repository.
+]]
+
+local LOBBY_PLACE_ID = 14776071100
+local GAMEPLAY_PLACE_ID = 14776084615
+local VERSION = "1.3.7"
+
+local SUPPORTED_PLACE_IDS = {
+    [LOBBY_PLACE_ID] = true,
+    [GAMEPLAY_PLACE_ID] = true,
+}
+
+local IS_GAMEPLAY_PLACE = game.PlaceId == GAMEPLAY_PLACE_ID
+
+if not SUPPORTED_PLACE_IDS[game.PlaceId] then
+    warn(("[Salty] Unsupported Shadow Network place: %s."):format(game.PlaceId))
+    return
+end
+
+local ENV = getgenv and getgenv() or _G
+
+if ENV.__SALTY_TSN_VANTA then
+    local previous = ENV.__SALTY_TSN_VANTA
+
+    -- Ask the old build to stop normally first.
+    if previous.Stop then
+        pcall(function()
+            previous:Stop()
+        end)
+    end
+
+    -- v1.3 briefly wrapped Window.Destroy itself. If that old wrapper failed
+    -- to remove the UI, bypass it and call VantaUI's native close object.
+    if previous.Window
+        and previous.Window.Destroyed ~= true
+        and type(previous.Window.Close) == "function"
+    then
+        pcall(function()
+            local closeObject = previous.Window:Close()
+            if closeObject and type(closeObject.Destroy) == "function" then
+                closeObject:Destroy()
+            end
+        end)
+    end
+
+    ENV.__SALTY_TSN_VANTA = nil
+end
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+local Events = ReplicatedStorage:WaitForChild("Events", 15)
+local QuickEvent = Events and Events:FindFirstChild("QuickEvent")
+local DailyTasks = Events and Events:FindFirstChild("DailyTasks")
+local LobbyEvent = Events and Events:FindFirstChild("LobbyEvent")
+
+local InventoryEvent = Events and Events:FindFirstChild("InventoryEvent")
+local ProximityPromt = Events and Events:FindFirstChild("ProximityPromt")
+local MissionsRemote = Events and Events:FindFirstChild("Missions")
+
+local MainGameplay = Events and Events:FindFirstChild("MainGameplay")
+local Monitor = MainGameplay and MainGameplay:FindFirstChild("Monitor")
+local EquipItemFunction = MainGameplay and MainGameplay:FindFirstChild("EquipItemFunction")
+
+local MainGameplayMissions = MainGameplay and MainGameplay:FindFirstChild("Missions")
+local UploadData = MainGameplayMissions and MainGameplayMissions:FindFirstChild("UploadData")
+
+local Modules = ReplicatedStorage:WaitForChild("Modules", 15)
+local GeneralModules = Modules and Modules:FindFirstChild("General")
+local SystemModules = Modules and Modules:FindFirstChild("Systems")
+
+local TypesAndModes
+local CanPlayLevel
+local LevelSelectionSystem
+
+-- These modules belong to the lobby flow and are not guaranteed to exist
+-- inside the gameplay place. Never use an unbounded WaitForChild here,
+-- because that would freeze Salty before VantaUI is created.
+local function safeRequireChild(parent, name)
+    if not parent then
+        return nil
+    end
+
+    local moduleScript = parent:FindFirstChild(name)
+
+    if not moduleScript or not moduleScript:IsA("ModuleScript") then
+        return nil
+    end
+
+    local ok, result = pcall(require, moduleScript)
+
+    if ok then
+        return result
+    end
+
+    return nil
+end
+
+if not IS_GAMEPLAY_PLACE then
+    TypesAndModes = safeRequireChild(GeneralModules, "TypesAndModes")
+    CanPlayLevel = safeRequireChild(GeneralModules, "CanPlayLevel")
+    LevelSelectionSystem = safeRequireChild(SystemModules, "LevelSelectionSystem")
+end
+
+if not LocalPlayer or not Events then
+    error("[Salty] Required game objects did not load.", 0)
+end
+
+local cacheBuster = tostring(os.time()) .. "-" .. tostring(math.random(100000, 999999))
+local VantaUI = loadstring(game:HttpGet(
+    "https://raw.githubusercontent.com/MrRos3/VantaUI/main/main.lua?v=" .. cacheBuster
+))()
+
+local State = {
+    Running = true,
+
+    SpeedEnabled = false,
+    SpeedMultiplier = 1.65,
+    Noclip = false,
+
+    PlayerESP = false,
+    ThreatESP = false,
+    UnknownNPCs = false,
+    EspDistance = true,
+    EspMaxDistance = 1500,
+
+    Fullbright = false,
+    KeepObjectiveVisible = false,
+
+    AutoDaily = false,
+    DailyInterval = 3,
+    LastDailyClaim = 0,
+
+    StoryMode = "Casual",
+    AutoStoryQueue = false,
+    AutoEndlessLaunch = false,
+    AutoLaunchDelay = 1.25,
+    LastLevelLaunch = 0,
+    LastSelectedLevel = nil,
+
+    AutoStoryComplete = false,
+    StoryCompleteDelay = 1.5,
+    LastStoryAttempt = 0,
+    LastStoryKey = nil,
+    StoryCompleting = false,
+    StoryWasInLobby = true,
+
+    AutoCompleteEndless = false,
+    AutoMissionPrompts = false,
+    AutoUploadMinigame = false,
+    AutoFinishEndless = false,
+    CurrentMissionData = nil,
+    ActiveUploader = nil,
+    PromptAttempts = setmetatable({}, { __mode = "k" }),
+    EndlessWorkerBusy = false,
+    MissionVisitActive = false,
+    Unloading = false,
+
+    GadgetInventory = {},
+    GadgetShop = {},
+    RunItems = {},
+    RunItemMap = {},
+    SelectedRunItem = nil,
+    AutoCollectSelectedRunItem = false,
+    LastRunItemAutoAttempt = 0,
+
+    Connections = {},
+    Window = nil,
+    EspFolder = nil,
+    EspEntries = {},
+    OriginalCollisions = setmetatable({}, { __mode = "k" }),
+    OriginalLighting = nil,
+    SpeedModule = nil,
+}
+
+ENV.__SALTY_TSN_VANTA = State
+
+local function connect(signal, callback)
+    local connection = signal:Connect(callback)
+    table.insert(State.Connections, connection)
+    return connection
+end
+
+local function notify(title, content, icon)
+    if State.Unloading then
+        return
+    end
+
+    pcall(function()
+        VantaUI:Notify({
+            Title = title or "Salty",
+            Content = tostring(content or ""),
+            Icon = icon or "sparkles",
+        })
+    end)
+end
+
+local function character()
+    return LocalPlayer.Character
+end
+
+local function humanoid()
+    local char = character()
+    return char and char:FindFirstChildOfClass("Humanoid") or nil
+end
+
+local function rootPart()
+    local char = character()
+    return char and char:FindFirstChild("HumanoidRootPart") or nil
+end
+
+local function getSpeedModule()
+    if State.SpeedModule then
+        return State.SpeedModule
+    end
+
+    local modules = ReplicatedStorage:FindFirstChild("Modules")
+    local systems = modules and modules:FindFirstChild("Systems")
+    local scriptObject = systems and systems:FindFirstChild("SetWalkSpeed")
+
+    if not scriptObject or not scriptObject:IsA("ModuleScript") then
+        return nil
+    end
+
+    local ok, module = pcall(require, scriptObject)
+    if ok and type(module) == "table" then
+        State.SpeedModule = module
+        return module
+    end
+
+    return nil
+end
+
+local SPEED_PASSIVE = {
+    Name = "SaltySpeed",
+    Percent = 0,
+    EndurancePercent = 0,
+}
+
+local function classifyStance(module, hum)
+    if not module or not hum then
+        return "walk"
+    end
+
+    if hum.WalkSpeed <= 0.05 then
+        return "stopped"
+    end
+
+    local candidates = {}
+
+    local function add(name, fn)
+        if type(fn) == "function" then
+            local ok, value = pcall(fn, LocalPlayer)
+            if ok and type(value) == "number" then
+                candidates[#candidates + 1] = { Name = name, Speed = value }
+            end
+        end
+    end
+
+    add("crouch", module.GiveCrouchSpeed)
+    add("walk", module.GiveWalkSpeed)
+    add("run", module.GiveRunSpeed)
+
+    local bestName = "walk"
+    local bestDistance = math.huge
+
+    for _, item in ipairs(candidates) do
+        local d = math.abs(hum.WalkSpeed - item.Speed)
+        if d < bestDistance then
+            bestDistance = d
+            bestName = item.Name
+        end
+    end
+
+    return bestName
+end
+
+local function setStanceSpeed(module, hum, stance)
+    if not module or not hum or stance == "stopped" then
+        return
+    end
+
+    local fn
+    if stance == "crouch" then
+        fn = module.GiveCrouchSpeed
+    elseif stance == "run" then
+        fn = module.GiveRunSpeed
+    else
+        fn = module.GiveWalkSpeed
+    end
+
+    if type(fn) == "function" then
+        local ok, value = pcall(fn, LocalPlayer)
+        if ok and type(value) == "number" then
+            hum.WalkSpeed = value
+        end
+    end
+end
+
+local function applySpeedAssist(showNotice)
+    local module = getSpeedModule()
+    local hum = humanoid()
+
+    if not module or not hum then
+        if showNotice then
+            notify("Movement", "The game's SetWalkSpeed module or Humanoid is not ready.", "circle-x")
+        end
+        return false
+    end
+
+    -- Touch GiveWalkSpeed once so the game's private passive table is initialized.
+    pcall(function()
+        module.GiveWalkSpeed(LocalPlayer)
+    end)
+
+    local stance = classifyStance(module, hum)
+
+    if type(module.RemovePassive) == "function" then
+        pcall(function()
+            module.RemovePassive(LocalPlayer, SPEED_PASSIVE)
+        end)
+    end
+
+    if State.SpeedEnabled and type(module.AddPassive) == "function" then
+        SPEED_PASSIVE.Percent = math.max(0, (State.SpeedMultiplier - 1) * 100)
+        pcall(function()
+            module.AddPassive(LocalPlayer, SPEED_PASSIVE)
+        end)
+    end
+
+    setStanceSpeed(module, hum, stance)
+
+    if showNotice then
+        if State.SpeedEnabled then
+            notify(
+                "Movement",
+                ("Game-aware speed multiplier set to %.2fx."):format(State.SpeedMultiplier),
+                "gauge"
+            )
+        else
+            notify("Movement", "Speed multiplier removed.", "gauge")
+        end
+    end
+
+    return true
+end
+
+local function restoreCollisions()
+    for part, value in pairs(State.OriginalCollisions) do
+        if part and part.Parent then
+            pcall(function()
+                part.CanCollide = value
+            end)
+        end
+    end
+    table.clear(State.OriginalCollisions)
+end
+
+local function applyNoclip()
+    local char = character()
+    if not char then
+        return
+    end
+
+    for _, object in ipairs(char:GetDescendants()) do
+        if object:IsA("BasePart") then
+            if State.OriginalCollisions[object] == nil then
+                State.OriginalCollisions[object] = object.CanCollide
+            end
+            object.CanCollide = false
+        end
+    end
+end
+
+local function saveLighting()
+    if State.OriginalLighting then
+        return
+    end
+
+    State.OriginalLighting = {
+        Brightness = Lighting.Brightness,
+        ClockTime = Lighting.ClockTime,
+        FogEnd = Lighting.FogEnd,
+        GlobalShadows = Lighting.GlobalShadows,
+        Ambient = Lighting.Ambient,
+        OutdoorAmbient = Lighting.OutdoorAmbient,
+        ExposureCompensation = Lighting.ExposureCompensation,
+    }
+end
+
+local function applyFullbright()
+    saveLighting()
+    Lighting.Brightness = 2.5
+    Lighting.ClockTime = 14
+    Lighting.FogEnd = 1000000
+    Lighting.GlobalShadows = false

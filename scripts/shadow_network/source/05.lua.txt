@@ -1,0 +1,405 @@
+                or record.Id
+                or record.ID
+
+            if recordId ~= nil
+                and tostring(recordId) == tostring(itemId)
+            then
+                return record
+            end
+        end
+    end
+
+    local inventory = LocalPlayer:FindFirstChild("Inventory")
+    if inventory then
+        for _, item in ipairs(inventory:GetChildren()) do
+            local itemIdValue =
+                item:FindFirstChild("ItemId")
+                or item:FindFirstChild("ItemID")
+                or item:FindFirstChild("Id")
+
+            local matches =
+                (itemIdValue and tostring(itemIdValue.Value) == tostring(itemId))
+                or item.Name == tostring(itemId)
+
+            if matches then
+                local uidObject =
+                    item:FindFirstChild("uid")
+                    or item:FindFirstChild("UID")
+                    or item:FindFirstChild("Uid")
+
+                return {
+                    ItemId = itemId,
+                    uid = uidObject and uidObject.Value or nil,
+                    Instance = item,
+                }
+            end
+        end
+    end
+
+    return nil
+end
+
+local RUN_ITEM_FALLBACKS = {
+    "WoodenBat",
+    "Flashlight",
+    "Lantern",
+    "Radio",
+    "Crowbar",
+    "Hammer",
+    "Screwdriver",
+    "Key",
+    "Keycard",
+    "Battery",
+    "Fuel",
+    "Fuse",
+    "AlmondWater",
+    "Medkit",
+    "Pills",
+    "Note",
+    "Ladder",
+    "Rope",
+    "Wrench",
+}
+
+local ItemsModule = nil
+
+local function loadRunItemsModule()
+    if ItemsModule then
+        return ItemsModule
+    end
+
+    local modules = ReplicatedStorage:FindFirstChild("Modules")
+    local itemsFolder = modules and modules:FindFirstChild("Items")
+    local itemModuleScript = itemsFolder and itemsFolder:FindFirstChild("Items")
+
+    if not itemModuleScript or not itemModuleScript:IsA("ModuleScript") then
+        return nil
+    end
+
+    local ok, result = pcall(require, itemModuleScript)
+    if ok and type(result) == "table" then
+        ItemsModule = result
+        return ItemsModule
+    end
+
+    return nil
+end
+
+local function prettyRunItemName(value)
+    local text = tostring(value or "")
+    text = text:gsub("([a-z0-9])([A-Z])", "%1 %2")
+    text = text:gsub("[_%-]+", " ")
+    text = text:gsub("%s+", " ")
+    text = text:match("^%s*(.-)%s*$") or ""
+    return text ~= "" and text or tostring(value or "Item")
+end
+
+local function runItemKey(value)
+    return string.lower(tostring(value or "")):gsub("[^%w]", "")
+end
+
+local function discoverRunItems()
+    local catalog = {}
+    local map = {}
+
+    local function add(name, source)
+        if type(name) ~= "string" or name == "" or name == "__index" then
+            return
+        end
+
+        local key = runItemKey(name)
+        if key == "" then
+            return
+        end
+
+        local existing = map[key]
+        if existing then
+            if source == "game module" then
+                existing.Source = source
+                existing.ItemName = name
+                existing.DisplayName = prettyRunItemName(name)
+            end
+            return
+        end
+
+        local item = {
+            Key = key,
+            ItemName = name,
+            DisplayName = prettyRunItemName(name),
+            Source = source or "fallback",
+        }
+
+        map[key] = item
+        catalog[#catalog + 1] = item
+    end
+
+    local module = loadRunItemsModule()
+    if module then
+        for name in pairs(module) do
+            if type(name) == "string" then
+                add(name, "game module")
+            end
+        end
+    end
+
+    for _, name in ipairs(RUN_ITEM_FALLBACKS) do
+        add(name, "confirmed fallback")
+    end
+
+    table.sort(catalog, function(a, b)
+        return string.lower(a.DisplayName) < string.lower(b.DisplayName)
+    end)
+
+    State.RunItems = catalog
+    State.RunItemMap = map
+    return catalog
+end
+
+local function dropdownValuesForRunItems()
+    local values = {}
+
+    for _, item in ipairs(discoverRunItems()) do
+        values[#values + 1] = {
+            Title = item.DisplayName,
+            Desc = item.Source == "game module" and "Game item" or "Known game item",
+            Icon = "package",
+            Key = item.Key,
+            ItemName = item.ItemName,
+        }
+    end
+
+    return values
+end
+
+local function selectedRunItemRecord(value)
+    if type(value) == "table" then
+        local key = value.Key or runItemKey(value.ItemName or value.Title)
+        return key ~= "" and State.RunItemMap[key] or nil
+    end
+
+    local key = runItemKey(value)
+    return key ~= "" and State.RunItemMap[key] or nil
+end
+
+local function getEquippedCurrent()
+    local equipped = LocalPlayer:FindFirstChild("Equipped")
+    return equipped and equipped:FindFirstChild("Current") or nil
+end
+
+local function giveRunItem(item, showNotice)
+    if type(item) ~= "table" or not item.ItemName then
+        if showNotice then
+            notify("Items", "Select an item first.", "circle-help")
+        end
+        return false
+    end
+
+    local current = getEquippedCurrent()
+    if not current then
+        if showNotice then
+            notify("Items", "Player.Equipped.Current is not available yet.", "circle-x")
+        end
+        return false
+    end
+
+    local ok, err = pcall(function()
+        -- This is the actual item-spoofer path used by the working script:
+        -- Shadow Network reacts to Equipped.Current changing to an item key.
+        current.Value = item.ItemName
+    end)
+
+    if not ok then
+        if showNotice then
+            notify("Items", "Could not give " .. item.DisplayName .. ": " .. tostring(err), "circle-x")
+        end
+        return false
+    end
+
+    if showNotice then
+        notify("Items", "Gave/equipped " .. item.DisplayName .. ".", "package-check")
+    end
+
+    return true
+end
+
+local function getSelectedRunItem(showNotice)
+    local item = selectedRunItemRecord(State.SelectedRunItem)
+    return giveRunItem(item, showNotice)
+end
+
+local function runItemsText(selected)
+    local item = selectedRunItemRecord(selected or State.SelectedRunItem)
+    local module = loadRunItemsModule()
+
+    local lines = {
+        ("Game item keys: %d"):format(#(State.RunItems or {})),
+        "Selected: " .. (item and item.DisplayName or "none"),
+        "Method: Equipped.Current item spoofer",
+        "Items module: " .. (module and "LOADED" or "fallback list"),
+        "No Credits/store purchase calls are used.",
+    }
+
+    return table.concat(lines, "\n")
+end
+
+local function requestDailyTasks(showNotice)
+    if not DailyTasks or not DailyTasks:IsA("RemoteEvent") then
+        if showNotice then
+            notify("Daily Tasks", "DailyTasks remote is unavailable.", "circle-x")
+        end
+        return false
+    end
+
+    DailyTasks:FireServer("RequestTasks")
+
+    if showNotice then
+        notify("Daily Tasks", "Requested the current task list.", "list-checks")
+    end
+
+    return true
+end
+
+local function getDailyRows()
+    local folder = LocalPlayer:FindFirstChild("DailyTasksData")
+    local rows = {}
+
+    if not folder then
+        return rows
+    end
+
+    for i = 1, 3 do
+        local taskFolder = folder:FindFirstChild("Task" .. i)
+        if taskFolder then
+            local progress = taskFolder:FindFirstChild("Progress")
+            local completed = taskFolder:FindFirstChild("Completed")
+            local claimed = taskFolder:FindFirstChild("Claimed")
+
+            rows[#rows + 1] = {
+                Index = i,
+                Progress = progress and tonumber(progress.Value) or 0,
+                Completed = completed and tonumber(completed.Value) == 1 or false,
+                Claimed = claimed and tonumber(claimed.Value) == 1 or false,
+            }
+        end
+    end
+
+    return rows
+end
+
+local function dailyStatusText()
+    local rows = getDailyRows()
+    if #rows == 0 then
+        return "Daily task data has not loaded yet."
+    end
+
+    local lines = {}
+    for _, row in ipairs(rows) do
+        local status
+        if row.Claimed then
+            status = "CLAIMED"
+        elseif row.Completed then
+            status = "READY"
+        else
+            status = "IN PROGRESS"
+        end
+
+        lines[#lines + 1] = ("Task %d • %s • progress %s")
+            :format(row.Index, status, tostring(row.Progress))
+    end
+
+    return table.concat(lines, "\n")
+end
+
+local function claimCompletedDailies(showNotice)
+    if not DailyTasks or not DailyTasks:IsA("RemoteEvent") then
+        if showNotice then
+            notify("Daily Tasks", "DailyTasks remote is unavailable.", "circle-x")
+        end
+        return 0
+    end
+
+    local rows = getDailyRows()
+    if #rows == 0 then
+        requestDailyTasks(false)
+        if showNotice then
+            notify("Daily Tasks", "Task data is loading. Try again in a moment.", "loader-circle")
+        end
+        return 0
+    end
+
+    local claimed = 0
+    for _, row in ipairs(rows) do
+        if row.Completed and not row.Claimed then
+            DailyTasks:FireServer("ClaimReward", row.Index)
+            claimed += 1
+            task.wait(0.12)
+        end
+    end
+
+    if claimed > 0 then
+        State.LastDailyClaim = os.clock()
+    end
+
+    if showNotice then
+        if claimed > 0 then
+            notify("Daily Tasks", ("Claim request sent for %d completed task(s)."):format(claimed), "gift")
+        else
+            notify("Daily Tasks", "No completed unclaimed tasks right now.", "circle-check")
+        end
+    end
+
+    return claimed
+end
+
+local function uiParent()
+    if gethui then
+        local ok, result = pcall(gethui)
+        if ok and result then
+            return result
+        end
+    end
+    return CoreGui
+end
+
+local EspFolder = Instance.new("Folder")
+EspFolder.Name = "SaltyTSN_ESP"
+EspFolder.Parent = uiParent()
+State.EspFolder = EspFolder
+
+local THREAT_TERMS = {
+    "bacteria",
+    "hound",
+    "wretch",
+    "skinstealer",
+    "skin stealer",
+    "conehead",
+    "cone head",
+    "duller",
+    "entity",
+}
+
+local function normalized(value)
+    return string.lower(tostring(value or "")):gsub("[_%-]", " ")
+end
+
+local function isKnownThreatName(name)
+    local n = normalized(name)
+    for _, term in ipairs(THREAT_TERMS) do
+        if n:find(term, 1, true) then
+            return true
+        end
+    end
+    return false
+end
+
+local function playerFromCharacterModel(model)
+    if not model or not model:IsA("Model") then
+        return nil
+    end
+    return Players:GetPlayerFromCharacter(model)
+end
+
+local function modelAnchor(model)
+    if not model or not model:IsA("Model") then
+        return nil
+    end

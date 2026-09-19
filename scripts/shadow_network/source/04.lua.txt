@@ -1,0 +1,406 @@
+            if fireMissionPrompt(object) then
+                fired += 1
+            end
+        end
+    end
+
+    return fired
+end
+
+local function generatedMissionFolder()
+    local generated = workspace:FindFirstChild("Generated")
+    return generated and generated:FindFirstChild("Missions") or nil
+end
+
+local function missionModelFrom(object, missionFolder)
+    local current = object
+
+    while current and current.Parent and current.Parent ~= missionFolder do
+        current = current.Parent
+    end
+
+    if current and current.Parent == missionFolder then
+        return current
+    end
+
+    return nil
+end
+
+local function silentMissionVisit(targetPart, holdSeconds, pulse)
+    if State.MissionVisitActive
+        or not State.Running
+        or not targetPart
+        or not targetPart:IsA("BasePart")
+        or not targetPart.Parent
+    then
+        return false
+    end
+
+    local char = character()
+    local hum = humanoid()
+    local root = rootPart()
+
+    if not char or not hum or not root then
+        return false
+    end
+
+    State.MissionVisitActive = true
+
+    local origin = char:GetPivot()
+    local camera = workspace.CurrentCamera
+    local oldCameraType = camera and camera.CameraType
+    local oldCameraSubject = camera and camera.CameraSubject
+    local oldCameraCFrame = camera and camera.CFrame
+    local oldFov = camera and camera.FieldOfView
+    local oldAutoRotate = hum.AutoRotate
+
+    local transparency = {}
+    local collisions = {}
+
+    for _, object in ipairs(char:GetDescendants()) do
+        if object:IsA("BasePart") then
+            transparency[object] = object.LocalTransparencyModifier
+            collisions[object] = object.CanCollide
+        elseif object:IsA("Decal") then
+            transparency[object] = object.Transparency
+        end
+    end
+
+    local ok, err = pcall(function()
+        hum.Sit = false
+        hum.AutoRotate = false
+
+        if camera then
+            camera.CameraType = Enum.CameraType.Scriptable
+            camera.CFrame = oldCameraCFrame
+        end
+
+        for object in pairs(collisions) do
+            if object and object.Parent then
+                object.CanCollide = false
+                object.LocalTransparencyModifier = 1
+            end
+        end
+
+        for object in pairs(transparency) do
+            if object:IsA("Decal") and object.Parent then
+                object.Transparency = 1
+            end
+        end
+
+        local deadline = os.clock() + math.max(0.08, holdSeconds or 0.15)
+
+        repeat
+            if not State.Running then
+                break
+            end
+
+            if not targetPart.Parent then
+                break
+            end
+
+            char:PivotTo(targetPart.CFrame)
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+
+            if camera then
+                camera.CFrame = oldCameraCFrame
+            end
+
+            if pulse then
+                pcall(pulse)
+            end
+
+            RunService.Heartbeat:Wait()
+        until os.clock() >= deadline
+    end)
+
+    pcall(function()
+        if char and char.Parent then
+            char:PivotTo(origin)
+        end
+
+        if root and root.Parent then
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+        end
+
+        hum.AutoRotate = oldAutoRotate
+    end)
+
+    for object, value in pairs(collisions) do
+        if object and object.Parent then
+            pcall(function()
+                object.CanCollide = value
+            end)
+        end
+    end
+
+    for object, value in pairs(transparency) do
+        if object and object.Parent then
+            pcall(function()
+                if object:IsA("BasePart") then
+                    object.LocalTransparencyModifier = value
+                elseif object:IsA("Decal") then
+                    object.Transparency = value
+                end
+            end)
+        end
+    end
+
+    if camera then
+        pcall(function()
+            camera.CameraType = oldCameraType or Enum.CameraType.Custom
+            camera.CameraSubject = oldCameraSubject
+            camera.CFrame = oldCameraCFrame
+            camera.FieldOfView = oldFov or 75
+        end)
+    end
+
+    State.MissionVisitActive = false
+
+    if not ok then
+        warn("[Salty Endless] Silent mission visit failed:", err)
+        return false
+    end
+
+    return true
+end
+
+local function completeExploreZones(missionFolder)
+    local touched = 0
+
+    for _, object in ipairs(missionFolder:GetDescendants()) do
+        if not State.Running or not State.AutoCompleteEndless then
+            break
+        end
+
+        if object:IsA("BasePart") and object.Name == "HitBox" then
+            local model = missionModelFrom(object, missionFolder)
+            local hasProgress = model and model:FindFirstChild("Progress", true) ~= nil
+
+            if not hasProgress then
+                if silentMissionVisit(object, 0.16) then
+                    touched += 1
+                    task.wait(0.04)
+                end
+            end
+        end
+    end
+
+    return touched
+end
+
+local function completeUploaderStations(missionFolder)
+    local handled = {}
+    local completedStations = 0
+
+    for _, object in ipairs(missionFolder:GetDescendants()) do
+        if not State.Running or not State.AutoCompleteEndless then
+            break
+        end
+
+        if object:IsA("ValueBase") and object.Name == "Progress" then
+            local station = object.Parent
+
+            if station and not handled[station] then
+                handled[station] = true
+
+                local hitbox = station:FindFirstChild("Hitbox", true)
+                local progress = object
+
+                if hitbox
+                    and hitbox:IsA("BasePart")
+                    and tonumber(progress.Value)
+                    and tonumber(progress.Value) < 100
+                then
+                    -- Upload Data / Scan Objects gain 2 progress every 0.2 s
+                    -- while a player remains within 9.2 studs. Around 10 s is
+                    -- enough for 0 -> 100, including the halfway repair.
+                    silentMissionVisit(hitbox, 11.6, function()
+                        triggerPromptsIn(station)
+
+                        local needToFix = station:FindFirstChild("NeedToFix", true)
+                        if needToFix
+                            and needToFix:IsA("ValueBase")
+                            and needToFix.Value == true
+                        then
+                            triggerPromptsIn(station)
+                        end
+                    end)
+
+                    if tonumber(progress.Value) and tonumber(progress.Value) >= 100 then
+                        completedStations += 1
+                    end
+                end
+            end
+        end
+    end
+
+    return completedStations
+end
+
+local function rescueWanderers(missionFolder)
+    local hasRescue = false
+
+    for _, object in ipairs(missionFolder:GetDescendants()) do
+        if object:IsA("ProximityPrompt")
+            and string.lower(tostring(object.ActionText)) == "rescue"
+        then
+            hasRescue = true
+            fireMissionPrompt(object)
+        end
+    end
+
+    if not hasRescue then
+        return false
+    end
+
+    local lobby = workspace:FindFirstChild("LobbyMap")
+    local zone = lobby and lobby:FindFirstChild("Zone")
+
+    if zone and zone:IsA("BasePart") then
+        -- Once the server assigns Follow.Value to our character, wait at the
+        -- lobby zone so the Wanderer pathfinder can reach its completion zone.
+        silentMissionVisit(zone, 12, function()
+            triggerPromptsIn(missionFolder)
+        end)
+        return true
+    end
+
+    return false
+end
+
+local function findLobbyMonitorPart()
+    local lobby = workspace:FindFirstChild("LobbyMap")
+    if not lobby then
+        return nil
+    end
+
+    local monitorGui = lobby:FindFirstChild("MonitorGui", true)
+    local current = monitorGui
+
+    while current and current ~= lobby do
+        if current:IsA("BasePart") then
+            return current
+        end
+        current = current.Parent
+    end
+
+    local screen = lobby:FindFirstChild("Screen", true)
+    if screen and screen:IsA("BasePart") then
+        return screen
+    end
+
+    return nil
+end
+
+local function finishEndlessAtMonitor()
+    if not Monitor or not Monitor:IsA("RemoteEvent") then
+        return false
+    end
+
+    local monitorPart = findLobbyMonitorPart()
+
+    if monitorPart then
+        return silentMissionVisit(monitorPart, 0.22, function()
+            Monitor:FireServer("FinishMission")
+        end)
+    end
+
+    Monitor:FireServer("FinishMission")
+    return true
+end
+
+local function runEndlessTaskPass(showNotice)
+    if State.EndlessWorkerBusy then
+        if showNotice then
+            notify("Endless", "The Endless task worker is already running.", "loader-circle")
+        end
+        return false
+    end
+
+    if not IS_GAMEPLAY_PLACE or currentGameMode() ~= "Main" then
+        if showNotice then
+            notify("Endless", "Enter an Endless run first.", "infinity")
+        end
+        return false
+    end
+
+    local missionFolder = generatedMissionFolder()
+    if not missionFolder then
+        if showNotice then
+            notify("Endless", "Waiting for Generated.Missions...", "loader-circle")
+        end
+        return false
+    end
+
+    State.EndlessWorkerBusy = true
+
+    local ok, err = pcall(function()
+        -- Prompt-driven missions: Bacteria, No-Clip Zone, Relay Towers,
+        -- Collect Package, Give Supplies, Rescue prompt, etc.
+        triggerMissionPromptsOnce(false)
+        task.wait(0.12)
+
+        local data = State.CurrentMissionData
+        if type(data) == "table" and data.Completed == true then
+            finishEndlessAtMonitor()
+            return
+        end
+
+        -- Explore missions are server Touched-based instead of prompt-based.
+        completeExploreZones(missionFolder)
+
+        data = State.CurrentMissionData
+        if type(data) == "table" and data.Completed == true then
+            finishEndlessAtMonitor()
+            return
+        end
+
+        -- Scan Objects and Upload Data require physical presence while
+        -- Progress rises, a halfway repair prompt, then more presence.
+        completeUploaderStations(missionFolder)
+
+        data = State.CurrentMissionData
+        if type(data) == "table" and data.Completed == true then
+            finishEndlessAtMonitor()
+            return
+        end
+
+        -- Rescue requires the rescued Wanderer itself to reach LobbyMap.Zone.
+        rescueWanderers(missionFolder)
+
+        triggerMissionPromptsOnce(false)
+        task.wait(0.12)
+
+        data = State.CurrentMissionData
+        if type(data) == "table" and data.Completed == true then
+            finishEndlessAtMonitor()
+        end
+    end)
+
+    State.EndlessWorkerBusy = false
+
+    if not ok then
+        warn("[Salty Endless] Task worker error:", err)
+        if showNotice then
+            notify("Endless", "Task worker hit an error. Check console.", "circle-x")
+        end
+        return false
+    end
+
+    if showNotice then
+        notify("Endless", "Endless task pass completed.", "badge-check")
+    end
+
+    return true
+end
+
+local function findOwnedGadget(itemId)
+    for _, record in pairs(State.GadgetInventory) do
+        if type(record) == "table" then
+            local recordId =
+                record.ItemId
+                or record.ItemID
+                or record.ItemKey

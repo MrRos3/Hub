@@ -1,0 +1,406 @@
+
+    return model:FindFirstChild("Head")
+        or model:FindFirstChild("HumanoidRootPart")
+        or model.PrimaryPart
+        or model:FindFirstChildWhichIsA("BasePart")
+end
+
+local function looksLikeThreat(model)
+    if not model or not model:IsA("Model") then
+        return false
+    end
+
+    if playerFromCharacterModel(model) then
+        return false
+    end
+
+    if isKnownThreatName(model.Name) then
+        return modelAnchor(model) ~= nil
+    end
+
+    local parent = model.Parent
+    if parent and (
+        isKnownThreatName(parent.Name)
+        or normalized(parent.Name):find("monster", 1, true)
+        or normalized(parent.Name):find("npc", 1, true)
+    ) then
+        return modelAnchor(model) ~= nil
+    end
+
+    for name, value in pairs(model:GetAttributes()) do
+        local key = normalized(name)
+        if (key:find("entity", 1, true) or key:find("hostile", 1, true))
+            and value ~= false and value ~= 0 and value ~= nil
+        then
+            return modelAnchor(model) ~= nil
+        end
+    end
+
+    if State.UnknownNPCs and model:FindFirstChildOfClass("Humanoid") then
+        return modelAnchor(model) ~= nil
+    end
+
+    return false
+end
+
+local function createEspEntry(kind, model, labelName)
+    local anchor = modelAnchor(model)
+    if not anchor then
+        return nil
+    end
+
+    if State.EspEntries[model] then
+        return State.EspEntries[model]
+    end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "Salty_" .. kind
+    highlight.Adornee = model
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.FillTransparency = kind == "Threat" and 0.72 or 0.82
+    highlight.OutlineTransparency = 0
+
+    if kind == "Threat" then
+        highlight.FillColor = Color3.fromRGB(255, 70, 70)
+        highlight.OutlineColor = Color3.fromRGB(255, 210, 210)
+    else
+        highlight.FillColor = Color3.fromRGB(85, 180, 255)
+        highlight.OutlineColor = Color3.fromRGB(210, 235, 255)
+    end
+
+    highlight.Parent = EspFolder
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "Salty_Label"
+    billboard.Adornee = anchor
+    billboard.AlwaysOnTop = true
+    billboard.Size = UDim2.fromOffset(210, 32)
+    billboard.StudsOffset = Vector3.new(0, 3.2, 0)
+    billboard.Parent = EspFolder
+
+    local text = Instance.new("TextLabel")
+    text.BackgroundTransparency = 1
+    text.Size = UDim2.fromScale(1, 1)
+    text.Font = Enum.Font.GothamMedium
+    text.TextSize = 13
+    text.TextStrokeTransparency = 0.55
+    text.TextColor3 = kind == "Threat" and Color3.fromRGB(255, 120, 120) or Color3.fromRGB(145, 210, 255)
+    text.Text = labelName
+    text.Parent = billboard
+
+    local entry = {
+        Kind = kind,
+        Model = model,
+        Anchor = anchor,
+        Highlight = highlight,
+        Billboard = billboard,
+        Label = text,
+        BaseName = labelName,
+    }
+
+    State.EspEntries[model] = entry
+    return entry
+end
+
+local function destroyEspEntry(model)
+    local entry = State.EspEntries[model]
+    if not entry then
+        return
+    end
+
+    pcall(function()
+        entry.Highlight:Destroy()
+    end)
+    pcall(function()
+        entry.Billboard:Destroy()
+    end)
+
+    State.EspEntries[model] = nil
+end
+
+local function clearEsp(kind)
+    for model, entry in pairs(State.EspEntries) do
+        if not kind or entry.Kind == kind then
+            destroyEspEntry(model)
+        end
+    end
+end
+
+local function syncEsp()
+    local wanted = {}
+    local myRoot = rootPart()
+
+    if State.PlayerESP then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character.Parent then
+                local model = player.Character
+                local anchor = modelAnchor(model)
+                if anchor then
+                    wanted[model] = true
+                    local entry = createEspEntry("Player", model, player.DisplayName or player.Name)
+                    if entry then
+                        entry.BaseName = player.DisplayName or player.Name
+                    end
+                end
+            end
+        end
+    end
+
+    if State.ThreatESP then
+        for _, object in ipairs(workspace:GetDescendants()) do
+            if object:IsA("Model") and looksLikeThreat(object) then
+                wanted[object] = true
+                createEspEntry("Threat", object, object.Name)
+            end
+        end
+    end
+
+    for model, entry in pairs(State.EspEntries) do
+        local valid = wanted[model]
+            and entry.Model
+            and entry.Model.Parent
+            and entry.Anchor
+            and entry.Anchor.Parent
+
+        if not valid then
+            destroyEspEntry(model)
+        elseif myRoot then
+            local distance = math.floor((myRoot.Position - entry.Anchor.Position).Magnitude + 0.5)
+            local insideRange = distance <= State.EspMaxDistance
+
+            entry.Highlight.Enabled = insideRange
+            entry.Billboard.Enabled = insideRange
+
+            if insideRange then
+                if State.EspDistance then
+                    entry.Label.Text = ("%s • %d studs"):format(entry.BaseName, distance)
+                else
+                    entry.Label.Text = entry.BaseName
+                end
+            end
+        end
+    end
+end
+
+local function currentStatusText()
+    local level, exp = getLevelInfo()
+    local hum = humanoid()
+
+    local lines = {
+        "Player Level: " .. tostring(level or "?"),
+        "EXP: " .. tostring(exp or "?"),
+        "Health: " .. (hum and (math.floor(hum.Health) .. " / " .. math.floor(hum.MaxHealth)) or "?"),
+    }
+
+    if IS_GAMEPLAY_PLACE then
+        lines[#lines + 1] = gameplayStatusText():gsub("\n", " • ")
+    else
+        lines[#lines + 1] = "Story: " .. storyProgressText(State.StoryMode):gsub("\n", " • ")
+    end
+
+    return table.concat(lines, "\n")
+end
+
+local Window = VantaUI:CreateWindow({
+    Title = "Salty • Shadow Network",
+    AutoCleanupFeatures = false,
+    Icon = VantaUI.Brand.Image,
+    Theme = "Salty Special",
+    HideSearchBar = false,
+    StartupTab = "Home",
+    Branding = {
+        Name = "SALTY",
+        Image = VantaUI.Brand.Image,
+        Folder = "SaltyTSN",
+        IconSize = 24,
+        IconRadius = 7,
+        Intro = false,
+    },
+    OpenButton = {
+        Title = "Open Salty",
+        Icon = VantaUI.Brand.Image,
+        Enabled = true,
+        Draggable = true,
+        OnlyMobile = false,
+        OnlyIcon = true,
+        CornerRadius = UDim.new(0, 11),
+        StrokeThickness = 2,
+        ImageZoom = 1,
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromHex("#000000")),
+            ColorSequenceKeypoint.new(1, Color3.fromHex("#000000")),
+        }),
+    },
+    Sounds = {
+        Enabled = true,
+        Preset = "Soft",
+        Volume = 0.35,
+        Pitch = 1,
+    },
+})
+
+State.Window = Window
+
+-- VantaUI v0.3.6 owns the red-X lifecycle.
+-- Do not replace Window.Close here. X must fully destroy/unload Salty.
+
+Window:Tag({
+    Title = "v" .. VERSION,
+    Icon = "sparkles",
+    Color = Color3.fromHex("#151116"),
+    Border = true,
+})
+
+local Home = Window:Tab({
+    Title = "Home",
+    Icon = "house",
+})
+
+local Levels = Window:Tab({
+    Title = "Levels",
+    Icon = "route",
+})
+
+local ItemsTab = Window:Tab({
+    Title = "Items",
+    Icon = "package",
+})
+
+local Movement = Window:Tab({
+    Title = "Movement",
+    Icon = "gauge",
+})
+
+local Visuals = Window:Tab({
+    Title = "Visuals",
+    Icon = "eye",
+})
+
+local Tasks = Window:Tab({
+    Title = "Tasks",
+    Icon = "list-checks",
+})
+
+local Utility = Window:Tab({
+    Title = "Utility",
+    Icon = "wrench",
+})
+
+local StatusParagraph = Home:Paragraph({
+    Title = "Live status",
+    Desc = "Loading player state...",
+    Icon = "activity",
+})
+
+local ObjectiveParagraph = Home:Paragraph({
+    Title = "Current objective",
+    Desc = "Waiting for objective UI...",
+    Icon = "route",
+})
+
+Home:Button({
+    Title = "Refresh status",
+    Desc = "Refreshes player level, EXP, health, Story progress, and objective text.",
+    Icon = "refresh-cw",
+    Callback = function()
+        StatusParagraph:SetDesc(currentStatusText())
+        ObjectiveParagraph:SetDesc(getObjectiveText())
+        notify("Salty", "Status refreshed.", "refresh-cw")
+    end,
+})
+
+Home:Button({
+    Title = "Claim completed dailies",
+    Desc = "Claims only daily tasks the game already marks as completed.",
+    Icon = "gift",
+    Callback = function()
+        claimCompletedDailies(true)
+    end,
+})
+
+Movement:Paragraph({
+    Title = "Game-aware movement",
+    Desc = "Speed uses the game's SetWalkSpeed passive system so walk/run/crouch ratios stay intact.",
+    Icon = "person-standing",
+})
+
+Movement:Slider({
+    Title = "Speed multiplier",
+    Desc = "Multiplier applied through the game's passive speed table.",
+    Value = {
+        Min = 1,
+        Max = 3.5,
+        Default = State.SpeedMultiplier,
+    },
+    Step = 0.05,
+    Callback = function(value)
+        State.SpeedMultiplier = value
+        if State.SpeedEnabled then
+            applySpeedAssist(false)
+        end
+    end,
+})
+
+Movement:Toggle({
+    Title = "Speed assist",
+    Desc = "Adds/removes a named Salty speed passive instead of blindly forcing one WalkSpeed value.",
+    Value = false,
+    Callback = function(value)
+        State.SpeedEnabled = value
+        applySpeedAssist(true)
+    end,
+})
+
+Movement:Toggle({
+    Title = "Noclip",
+    Desc = "Locally disables character collisions while enabled.",
+    Value = false,
+    Callback = function(value)
+        State.Noclip = value
+        if not value then
+            restoreCollisions()
+        end
+    end,
+})
+
+Movement:Button({
+    Title = "Reset movement",
+    Desc = "Removes Salty's speed passive and restores collision settings.",
+    Icon = "rotate-ccw",
+    Callback = function()
+        State.SpeedEnabled = false
+        State.Noclip = false
+        applySpeedAssist(false)
+        restoreCollisions()
+        notify("Movement", "Movement changes reset.", "rotate-ccw")
+    end,
+})
+
+Visuals:Toggle({
+    Title = "Player ESP",
+    Desc = "Highlights other players and shows their distance.",
+    Value = false,
+    Callback = function(value)
+        State.PlayerESP = value
+        if not value then
+            clearEsp("Player")
+        end
+    end,
+})
+
+Visuals:Toggle({
+    Title = "Threat ESP",
+    Desc = "Highlights known entity names such as Bacteria, Hound, Wretch, Skin Stealer, ConeHeads, and Duller.",
+    Value = false,
+    Callback = function(value)
+        State.ThreatESP = value
+        if not value then
+            clearEsp("Threat")
+        end
+    end,
+})
+
+Visuals:Toggle({
+    Title = "Include unknown NPCs",
+    Desc = "When Threat ESP is on, also includes non-player Humanoid models that are not recognized by name.",
+    Value = false,
