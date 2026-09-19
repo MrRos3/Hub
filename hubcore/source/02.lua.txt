@@ -1,0 +1,186 @@
+        Features = { "Item tools", "ESP", "Automation" },
+        Url = BASE_RAW .. "scripts/ShadowNetwork.lua",
+        ImageUrl = BASE_RAW .. "assets/cards/shadow-network.jpg?v=salty-v0",
+        ImageCache = "card_shadow-network_v0.jpg",
+        Updated = "Recently",
+        UpdatedAt = 30,
+        UsageCount = 118,
+    },
+    {
+        Id = "salty-mm2",
+        Name = "MM2",
+        Game = "Murder Mystery 2",
+        Category = "GAME SCRIPT",
+        Description = "Roles, ESP, coin and sheriff utilities.",
+        Tags = { "mm2", "murder mystery 2", "roles", "esp", "coins", "sheriff" },
+        Features = { "Role ESP", "Coin tools", "Sheriff tools" },
+        Url = BASE_RAW .. "scripts/MM2.lua",
+        ImageUrl = BASE_RAW .. "assets/cards/mm2.jpg?v=salty-v0",
+        ImageCache = "card_mm2_v0.jpg",
+        Updated = "Recently",
+        UpdatedAt = 20,
+        UsageCount = 151,
+    },
+    {
+        Id = "dances",
+        Name = "Dances",
+        Game = "Multiple games",
+        Category = "UNIVERSAL",
+        Description = "Alzzmy's dance and emote collection.",
+        Tags = { "dance", "dances", "emotes", "animation", "universal" },
+        Features = { "Dance collection", "Quick playback", "Emote controls" },
+        Url = BASE_RAW .. "scripts/Dances.lua",
+        ImageUrl = BASE_RAW .. "assets/cards/alzzmys-dances.jpg?v=salty-v0",
+        ImageCache = "card_dances_v0.jpg",
+        Updated = "Recently",
+        UpdatedAt = 10,
+        UsageCount = 92,
+    },
+}
+
+local defaultSettings = {
+    favorites = { "velora-piano" },
+    view = "grid",
+    sort = "Recently Updated",
+}
+
+local settingsData = {
+    favorites = {},
+    view = defaultSettings.view,
+    sort = defaultSettings.sort,
+}
+
+local function copyDefaults()
+    settingsData.favorites = {}
+    for _, id in ipairs(defaultSettings.favorites) do
+        settingsData.favorites[id] = true
+    end
+    settingsData.view = defaultSettings.view
+    settingsData.sort = defaultSettings.sort
+end
+
+copyDefaults()
+
+if canCache and type(readfile) == "function" and isfile(SETTINGS_PATH) then
+    local ok, decoded = pcall(function()
+        return HttpService:JSONDecode(readfile(SETTINGS_PATH))
+    end)
+    if ok and type(decoded) == "table" then
+        settingsData.favorites = {}
+        if type(decoded.favorites) == "table" then
+            for _, id in ipairs(decoded.favorites) do
+                settingsData.favorites[tostring(id)] = true
+            end
+        end
+        if decoded.view == "grid" or decoded.view == "list" then
+            settingsData.view = decoded.view
+        end
+        if decoded.sort == "Recently Updated" or decoded.sort == "Alphabetical" or decoded.sort == "Most Used" then
+            settingsData.sort = decoded.sort
+        end
+    end
+end
+
+local function saveSettings()
+    if not canCache then
+        return
+    end
+    local favorites = {}
+    for id, enabled in pairs(settingsData.favorites) do
+        if enabled then
+            table.insert(favorites, id)
+        end
+    end
+    table.sort(favorites)
+    local payload = {
+        favorites = favorites,
+        view = settingsData.view,
+        sort = settingsData.sort,
+    }
+    pcall(function()
+        writefile(SETTINGS_PATH, HttpService:JSONEncode(payload))
+    end)
+end
+
+local function getGuiParent()
+    local ok, result = pcall(function()
+        if type(gethui) == "function" then
+            return gethui()
+        end
+        return CoreGui
+    end)
+    if ok and result then
+        return result
+    end
+    return player:WaitForChild("PlayerGui")
+end
+
+local parent = getGuiParent()
+
+for _, name in ipairs({ "SaltyHub", "VeloraHub" }) do
+    local old = parent:FindFirstChild(name)
+    if old then
+        old:Destroy()
+    end
+end
+for _, name in ipairs({ "SaltyHubBlur", "VeloraHubBlur" }) do
+    local old = Lighting:FindFirstChild(name)
+    if old then
+        old:Destroy()
+    end
+end
+
+local blur = create("BlurEffect", {
+    Name = "SaltyHubBlur",
+    Size = 0,
+    Parent = Lighting,
+})
+tween(blur, 0.22, { Size = 8 })
+
+local gui = create("ScreenGui", {
+    Name = "SaltyHub",
+    ResetOnSpawn = false,
+    IgnoreGuiInset = true,
+    DisplayOrder = 999999,
+    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+    Parent = parent,
+})
+
+pcall(function()
+    if syn and syn.protect_gui then
+        syn.protect_gui(gui)
+    end
+end)
+
+local dim = create("Frame", {
+    Name = "Dim",
+    Size = UDim2.fromScale(1, 1),
+    BackgroundColor3 = THEME.Stage,
+    BackgroundTransparency = 0.34,
+    BorderSizePixel = 0,
+    Parent = gui,
+})
+
+local main = create("CanvasGroup", {
+    Name = "Window",
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    Position = UDim2.fromScale(0.5, 0.5),
+    Size = UDim2.fromOffset(820, 540),
+    BackgroundColor3 = THEME.Window,
+    BorderSizePixel = 0,
+    ClipsDescendants = true,
+    GroupTransparency = 0,
+    Parent = dim,
+}, {
+    corner(14),
+    stroke(Color3.fromRGB(39, 39, 44), 0.15, 1),
+})
+
+local scale = create("UIScale", { Scale = 1, Parent = main })
+
+local function updateScale()
+    local camera = Workspace.CurrentCamera
+    if not camera then
+        return
+    end
+    local viewport = camera.ViewportSize
