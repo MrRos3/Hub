@@ -1,0 +1,291 @@
+--[[
+======================================================================
+                        SALTY MM2 v1.1
+                       PERFORMANCE EDITION
+                      PlaceId: 142823291
+======================================================================
+
+PERFORMANCE FIXES
+
+    ✓ NO full-map GetDescendants scan every 0.2 seconds
+    ✓ Cached dropped-gun candidates
+    ✓ Event-driven Weapon_Gun detection
+    ✓ Event-driven ServerCoinPart cache
+    ✓ Player ESP refresh throttled
+    ✓ Distance labels throttled
+    ✓ Coin ESP limited to nearest coins
+    ✓ Coin ESP uses lightweight BillboardGui
+    ✓ No per-frame WalkSpeed enforcement
+    ✓ No per-frame character-descendant noclip scan
+    ✓ One physical move per coin/gun attempt
+    ✓ Expensive fallback gun scan only when actually needed
+    ✓ Aim loop only runs when Aim Assist is enabled
+    ✓ ESP loops sleep when their feature is disabled
+    ✓ Automatic cache cleanup
+
+FEATURES
+
+    Roles
+        ✓ Murderer / Sheriff / Hero ESP
+        ✓ Alive / dead state
+        ✓ Innocent ESP optional
+        ✓ Murderer distance warning
+
+    Sheriff / Hero
+        ✓ Auto Equip Gun
+        ✓ Shoot Murderer
+        ✓ Auto Shoot
+        ✓ Camera Aim
+        ✓ LOS check
+
+    Dropped Gun
+        ✓ Cached finder
+        ✓ ESP
+        ✓ Auto pickup
+        ✓ Pickup NOW
+
+    Coins
+        ✓ Cached ServerCoinPart list
+        ✓ Auto Coin Farm
+        ✓ Lightweight Coin ESP
+        ✓ Coin bag tracking
+        ✓ Murderer avoidance
+
+    Spectate
+        ✓ Native MM2 SpectateService
+        ✓ Murderer / Sheriff spectate
+
+    Movement
+        ✓ Speed
+        ✓ Infinite Jump
+        ✓ Noclip
+        ✓ Fly • F
+
+    Utility
+        ✓ Performance Mode
+        ✓ Anti AFK
+        ✓ Diagnostics
+
+NO:
+    firetouchinterest
+    admin remotes
+    SetMurderer / SetSheriff
+    EliminatePlayer
+    anti-cheat bypass
+    inventory/trade abuse
+
+VantaUI is untouched.
+======================================================================
+]]
+
+
+--==============================================================
+-- SINGLETON
+--==============================================================
+
+local ENV = getgenv and getgenv() or _G
+
+if ENV.__SALTY_MM2 then
+    pcall(function()
+        ENV.__SALTY_MM2:Destroy()
+    end)
+end
+
+
+--==============================================================
+-- SERVICES
+--==============================================================
+
+local Players =
+    game:GetService("Players")
+
+local ReplicatedStorage =
+    game:GetService("ReplicatedStorage")
+
+local Workspace =
+    game:GetService("Workspace")
+
+local RunService =
+    game:GetService("RunService")
+
+local UserInputService =
+    game:GetService("UserInputService")
+
+local CollectionService =
+    game:GetService("CollectionService")
+
+local VirtualUser =
+    game:GetService("VirtualUser")
+
+
+local LocalPlayer =
+    Players.LocalPlayer
+
+local Camera =
+    Workspace.CurrentCamera
+
+
+--==============================================================
+-- CONSTANTS
+--==============================================================
+
+local VERSION =
+    "v1.1"
+
+local EXPECTED_PLACE =
+    142823291
+
+
+--==============================================================
+-- GAME MODULES
+--==============================================================
+
+local Modules =
+    ReplicatedStorage:
+    WaitForChild("Modules")
+
+
+local CurrentRoundClient = nil
+
+
+pcall(function()
+
+    CurrentRoundClient =
+        require(
+            Modules:
+            WaitForChild(
+                "CurrentRoundClient"
+            )
+        )
+
+end)
+
+
+if type(CurrentRoundClient)
+    ~= "table"
+then
+
+    CurrentRoundClient = {
+        PlayerData = {}
+    }
+end
+
+
+local SpectateService = nil
+
+
+pcall(function()
+
+    SpectateService =
+        require(
+            Modules:
+            WaitForChild(
+                "SpectateService"
+            )
+        )
+
+end)
+
+
+--==============================================================
+-- REMOTES
+--==============================================================
+
+local Remotes =
+    ReplicatedStorage:
+    WaitForChild("Remotes")
+
+local Gameplay =
+    Remotes:
+    WaitForChild("Gameplay")
+
+local CoinCollected =
+    Gameplay:
+    WaitForChild("CoinCollected")
+
+local CoinsStarted =
+    Gameplay:
+    WaitForChild("CoinsStarted")
+
+local RoundStart =
+    Gameplay:
+    WaitForChild("RoundStart")
+
+local VictoryScreen =
+    Gameplay:
+    WaitForChild("VictoryScreen")
+
+local PlayerDataChangedRemote =
+    Gameplay:
+    FindFirstChild("PlayerDataChanged")
+
+local GameOver =
+    Gameplay:
+    FindFirstChild("GameOver")
+
+
+--==============================================================
+-- SETTINGS
+--==============================================================
+
+local Settings = {
+
+    ------------------------------------------------------------
+    -- PERFORMANCE
+    ------------------------------------------------------------
+
+    PerformanceMode = true,
+
+    ESPInterval = 0.35,
+
+    GunESPInterval = 0.75,
+
+    CoinESPInterval = 1.35,
+
+    RoleCacheInterval = 0.35,
+
+    WarningInterval = 0.20,
+
+    GunFallbackScanInterval = 4,
+
+    MaxCoinESP = 28,
+
+
+    ------------------------------------------------------------
+    -- ROLE ESP
+    ------------------------------------------------------------
+
+    RoleESP = true,
+
+    RoleLabels = true,
+
+    ShowInnocents = false,
+
+    ShowDead = false,
+
+
+    ------------------------------------------------------------
+    -- WARNING
+    ------------------------------------------------------------
+
+    MurdererWarning = true,
+
+    WarningDistance = 25,
+
+
+    ------------------------------------------------------------
+    -- SHERIFF
+    ------------------------------------------------------------
+
+    AutoEquipGun = true,
+
+    AutoShootMurderer = false,
+
+    RequireLineOfSight = true,
+
+    AimCamera = false,
+
+    ShootInterval = 0.80,
+
+
+    ------------------------------------------------------------
