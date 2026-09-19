@@ -1,0 +1,186 @@
+    else
+        table.sort(result, function(a, b)
+            return (a.UpdatedAt or 0) > (b.UpdatedAt or 0)
+        end)
+    end
+
+    return result
+end
+
+local function showToast(title, message, kind)
+    toastToken += 1
+    local token = toastToken
+    local accent = kind == "error" and THEME.Danger or THEME.Success
+
+    local toast = create("Frame", {
+        Name = "Toast",
+        AnchorPoint = Vector2.new(1, 1),
+        Position = UDim2.new(1, 270, 1, -16),
+        Size = UDim2.fromOffset(254, 58),
+        BackgroundColor3 = THEME.Surface2,
+        BorderSizePixel = 0,
+        ZIndex = 80,
+        Parent = main,
+    }, { corner(9), stroke(Color3.fromRGB(45, 45, 52), 0.1, 1) })
+
+    create("Frame", {
+        Position = UDim2.fromOffset(10, 12),
+        Size = UDim2.fromOffset(5, 34),
+        BackgroundColor3 = accent,
+        BorderSizePixel = 0,
+        ZIndex = 81,
+        Parent = toast,
+    }, { corner(99) })
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(25, 9),
+        Size = UDim2.new(1, -34, 0, 18),
+        BackgroundTransparency = 1,
+        Text = truncate(title, 40),
+        TextColor3 = THEME.Text,
+        TextSize = 11,
+        FontFace = font(Enum.FontWeight.SemiBold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 81,
+        Parent = toast,
+    })
+    create("TextLabel", {
+        Position = UDim2.fromOffset(25, 28),
+        Size = UDim2.new(1, -34, 0, 18),
+        BackgroundTransparency = 1,
+        Text = truncate(message, 54),
+        TextColor3 = THEME.Muted,
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Regular),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 81,
+        Parent = toast,
+    })
+
+    tween(toast, 0.24, { Position = UDim2.new(1, -16, 1, -16) })
+    task.delay(2.7, function()
+        if token <= toastToken and toast and toast.Parent then
+            local out = tween(toast, 0.2, { Position = UDim2.new(1, 270, 1, -16) })
+            task.delay(0.22, function()
+                if toast and toast.Parent then
+                    toast:Destroy()
+                end
+            end)
+        end
+    end)
+end
+
+local renderContent
+local openDetails
+
+local function runRemote(entry)
+    if loading[entry.Id] then
+        return
+    end
+    loading[entry.Id] = true
+    loaded[entry.Id] = nil
+    if renderContent then
+        renderContent()
+    end
+    if selectedEntry and selectedEntry.Id == entry.Id and openDetails then
+        task.defer(function() openDetails(entry) end)
+    end
+
+    task.spawn(function()
+        local started = os.clock()
+        local ok, err = pcall(function()
+            if type(loadstring) ~= "function" then
+                error("loadstring is unavailable in this environment")
+            end
+            local sep = string.find(entry.Url, "?", 1, true) and "&" or "?"
+            local cache = tostring(os.time()) .. "-" .. tostring(math.random(100000, 999999))
+            local source = game:HttpGet(entry.Url .. sep .. "v=" .. cache)
+            if type(source) ~= "string" or source == "" then
+                error("download returned no source")
+            end
+            local chunk, compileError = loadstring(source)
+            if not chunk then
+                error(compileError or "compile failed")
+            end
+            chunk()
+        end)
+
+        local remaining = 0.55 - (os.clock() - started)
+        if remaining > 0 then
+            task.wait(remaining)
+        end
+
+        loading[entry.Id] = nil
+        if ok then
+            loaded[entry.Id] = true
+            showToast(entry.Name .. " loaded", "Ready to use in your Roblox session.", "success")
+            task.delay(1.6, function()
+                loaded[entry.Id] = nil
+                if renderContent then
+                    renderContent()
+                end
+            end)
+        else
+            showToast(entry.Name .. " could not load", truncate(err, 60), "error")
+        end
+
+        if renderContent then
+            renderContent()
+        end
+        if selectedEntry and selectedEntry.Id == entry.Id and openDetails then
+            task.defer(function() openDetails(entry) end)
+        end
+    end)
+end
+
+local function clearCards()
+    for _, child in ipairs(content:GetChildren()) do
+        if child ~= layout and child ~= padding then
+            child:Destroy()
+        end
+    end
+    table.clear(cardObjects)
+end
+
+local function styleFilterButtons()
+    for name, button in pairs(filterButtons) do
+        local active = name == currentFilter
+        button.BackgroundTransparency = active and 0 or 1
+        button.BackgroundColor3 = THEME.AccentSoft
+        button.TextColor3 = active and Color3.fromHex("#D9CFF1") or THEME.Muted
+        local s = button:FindFirstChildOfClass("UIStroke")
+        if s then
+            s.Transparency = active and 0.15 or 1
+            s.Color = THEME.AccentBorder
+        end
+        if name == "Favorites" then
+            button.Text = "Favorites  " .. tostring(favoriteCount())
+        else
+            button.Text = name
+        end
+    end
+end
+
+local function styleViewButtons()
+    local gridActive = currentView == "grid"
+    gridButton.BackgroundTransparency = gridActive and 0 or 1
+    listButton.BackgroundTransparency = gridActive and 1 or 0
+    for _, child in ipairs(gridGlyph:GetChildren()) do
+        if child:IsA("Frame") then
+            child.BackgroundColor3 = gridActive and Color3.fromHex("#C4B3E4") or THEME.Muted2
+        end
+    end
+    for _, child in ipairs(listGlyph:GetChildren()) do
+        if child:IsA("Frame") then
+            child.BackgroundColor3 = (not gridActive) and Color3.fromHex("#C4B3E4") or THEME.Muted2
+        end
+    end
+end
+
+local function makeHeartButton(parentFrame, entry, position, zIndex)
+    local button = create("TextButton", {
+        AnchorPoint = Vector2.new(1, 0),
+        Position = position,
+        Size = UDim2.fromOffset(22, 22),
+        BackgroundColor3 = THEME.AccentSoft,
+        BackgroundTransparency = 1,
