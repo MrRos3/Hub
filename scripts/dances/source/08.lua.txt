@@ -1,0 +1,108 @@
+
+
+        ------------------------------------------------
+
+        -- Don't cause a VantaUI layout update if the
+
+        -- text hasn't actually changed.
+
+        ------------------------------------------------
+
+
+        if text
+
+            ~= State.LastStatusText
+
+        then
+
+            State.LastStatusText =
+
+                text
+
+
+            Status:SetDesc(
+
+                text
+
+            )
+
+        end
+
+    end
+
+end)
+
+
+--==================================================
+
+-- READY
+
+--==================================================
+
+
+if TryHit then
+
+    VantaUI:Notify({
+
+        Title =
+
+            "Salty",
+
+
+        Content =
+
+            "Optimized tryHit AutoPlayer ready 🖤",
+
+
+        Icon =
+
+            "check",
+
+    })
+
+
+    print(
+
+        "[Salty] Original tryHit closure found:",
+
+        TryHit
+
+    )
+
+
+else
+
+    VantaUI:Notify({
+
+        Title =
+
+            "Salty",
+
+
+        Content =
+
+            "Could not locate tryHit: "
+
+            .. tostring(
+
+                TryHitError
+
+            ),
+
+
+        Icon =
+
+            "triangle-alert",
+
+    })
+
+
+    warn(
+
+        "[Salty]",
+
+        TryHitError
+
+    )
+
+end
