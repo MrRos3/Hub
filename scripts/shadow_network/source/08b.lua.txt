@@ -1,0 +1,210 @@
+            -- Cleanup also runs from OnDestroy. Keep this deferred fallback in
+            -- case an executor/library build does not invoke the callback.
+            task.defer(function()
+                task.wait(0.15)
+                cleanupSaltyRuntime()
+            end)
+            return
+        end
+    end
+
+    -- Hard fallback: bypass wrapper logic and destroy Vanta's Close object.
+    if self.Window and type(self.Window.Close) == "function" then
+        pcall(function()
+            local closeObject = self.Window:Close()
+            if closeObject and type(closeObject.Destroy) == "function" then
+                closeObject:Destroy()
+            end
+        end)
+    end
+
+    task.defer(cleanupSaltyRuntime)
+end
+
+local function bindCharacter(char)
+    local hum = char:WaitForChild("Humanoid", 10)
+    if not hum then
+        return
+    end
+
+    task.delay(0.3, function()
+        if State.Running and State.SpeedEnabled then
+            applySpeedAssist(false)
+        end
+    end)
+end
+
+if LocalPlayer.Character then
+    bindCharacter(LocalPlayer.Character)
+end
+
+connect(LocalPlayer.CharacterAdded, bindCharacter)
+
+local function bindCompletionObject(object)
+    if not object or not object:IsA("ValueBase") then
+        return
+    end
+
+    connect(object.Changed, function()
+        if not State.Running then
+            return
+        end
+
+        StoryParagraph:SetDesc(IS_GAMEPLAY_PLACE and gameplayStatusText() or storyProgressText(State.StoryMode))
+
+        if State.AutoStoryQueue
+            and tonumber(object.Value)
+            and tonumber(object.Value) >= 1
+        then
+            task.delay(State.AutoLaunchDelay, function()
+                if State.Running and State.AutoStoryQueue then
+                    queueNextStory(false)
+                end
+            end)
+        end
+    end)
+end
+
+task.spawn(function()
+    local completed = LocalPlayer:WaitForChild("LevelCompletedData", 20)
+    if not completed then
+        return
+    end
+
+    for _, object in ipairs(completed:GetChildren()) do
+        bindCompletionObject(object)
+    end
+
+    connect(completed.ChildAdded, function(object)
+        bindCompletionObject(object)
+
+        if State.AutoStoryQueue then
+            task.delay(State.AutoLaunchDelay, function()
+                if State.Running and State.AutoStoryQueue then
+                    queueNextStory(false)
+                end
+            end)
+        end
+    end)
+end)
+
+-- Keep the game-aware speed passive responsive when the game changes movement state.
+task.spawn(function()
+    while State.Running do
+        if State.SpeedEnabled then
+            local module = getSpeedModule()
+            if module then
+                -- Reinsert only if the game/module table was recreated.
+                local hasPassive = false
+                if type(module.FindPassive) == "function" then
+                    local ok, result = pcall(module.FindPassive, LocalPlayer, SPEED_PASSIVE)
+                    hasPassive = ok and result == true
+                end
+                if not hasPassive then
+                    applySpeedAssist(false)
+                end
+            end
+        end
+        task.wait(1.25)
+    end
+end)
+
+connect(RunService.Stepped, function()
+    if not State.Running then
+        return
+    end
+
+    if State.Noclip then
+        applyNoclip()
+    end
+end)
+
+connect(RunService.RenderStepped, function()
+    if not State.Running then
+        return
+    end
+
+    if State.Fullbright then
+        applyFullbright()
+    end
+
+    if State.KeepObjectiveVisible then
+        local objective = getObjectiveContainer()
+        if objective then
+            objective.Visible = true
+        end
+    end
+end)
+
+task.spawn(function()
+    while State.Running do
+        if State.PlayerESP or State.ThreatESP then
+            pcall(syncEsp)
+        elseif next(State.EspEntries) ~= nil then
+            clearEsp()
+        end
+        task.wait(0.35)
+    end
+end)
+
+task.spawn(function()
+    while State.Running do
+        local sinceLaunch = os.clock() - State.LastLevelLaunch
+
+        if State.AutoStoryQueue and sinceLaunch >= 4 then
+            local nextLevel = nextIncompleteStoryLevel(State.StoryMode)
+
+            if nextLevel
+                and (not State.LastSelectedLevel
+                    or State.LastSelectedLevel.Name ~= nextLevel.Name)
+            then
+                queueNextStory(false)
+            end
+        elseif State.AutoEndlessLaunch and sinceLaunch >= 8 then
+            local _, role = getGroupRole()
+
+            if role == "Leader" then
+                queueEndless(false)
+            end
+        end
+
+        task.wait(1)
+    end
+end)
+
+task.spawn(function()
+    while State.Running do
+        if State.AutoDaily then
+            local claimed = claimCompletedDailies(false)
+            if claimed > 0 then
+                notify("Daily Tasks", ("Auto-claimed %d reward(s)."):format(claimed), "gift")
+            end
+        end
+        task.wait(math.max(2, State.DailyInterval))
+    end
+end)
+
+task.spawn(function()
+    while State.Running do
+        pcall(function()
+            StatusParagraph:SetDesc(currentStatusText())
+            ObjectiveParagraph:SetDesc(getObjectiveText())
+            DailyParagraph:SetDesc(dailyStatusText())
+        end)
+        task.wait(1)
+    end
+end)
+
+task.spawn(function()
+    task.wait(0.8)
+    requestDailyTasks(false)
+    StatusParagraph:SetDesc(currentStatusText())
+    ObjectiveParagraph:SetDesc(getObjectiveText())
+    DailyParagraph:SetDesc(dailyStatusText())
+
+    notify(
+        "Salty • Shadow Network",
+        "v1.3.6 ready • run-item prompt + physical pickup resolver 🩵",
+        "sparkles"
+    )
+end)

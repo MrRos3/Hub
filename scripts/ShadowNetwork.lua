@@ -3,16 +3,27 @@
 
 local BASE = "https://raw.githubusercontent.com/MrRos3/Hub/main/scripts/shadow_network/source/"
 local cache = tostring(os.time()) .. "-" .. tostring(math.random(100000, 999999))
-local parts = table.create(8)
+local names = {
+    "01.lua.txt",
+    "02.lua.txt",
+    "03.lua.txt",
+    "04.lua.txt",
+    "05.lua.txt",
+    "06.lua.txt",
+    "07.lua.txt",
+    "08a.lua.txt",
+    "08b.lua.txt",
+}
 
-for i = 1, 8 do
-    local url = BASE .. string.format("%02d.lua.txt?v=%s", i, cache)
+local parts = table.create(#names)
+for i, name in ipairs(names) do
+    local url = BASE .. name .. "?v=" .. cache
     local ok, body = pcall(function()
         return game:HttpGet(url)
     end)
 
     if not ok or type(body) ~= "string" or body == "" then
-        error(("[Shadow Network] Failed to download source chunk %d."):format(i), 0)
+        error(("[Shadow Network] Failed to download source chunk %s."):format(name), 0)
     end
 
     parts[i] = body

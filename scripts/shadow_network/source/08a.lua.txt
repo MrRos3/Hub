@@ -1,0 +1,196 @@
+        end
+
+        State.CurrentMissionData = data
+
+        if EndlessParagraph then
+            EndlessParagraph:SetDesc(endlessMissionStatusText())
+        end
+
+        if State.AutoFinishEndless and data.Completed == true then
+            task.delay(0.12, function()
+                if State.Running and State.AutoFinishEndless then
+                    finishEndlessAtMonitor()
+                end
+            end)
+        end
+    end)
+end
+
+if UploadData and UploadData:IsA("RemoteEvent") then
+    connect(UploadData.OnClientEvent, function(action, uploader)
+        if action == "Start" and typeof(uploader) == "Instance" then
+            State.ActiveUploader = uploader
+            return
+        end
+
+        if action == "StartMinigame" then
+            local target = typeof(uploader) == "Instance" and uploader or State.ActiveUploader
+
+            if typeof(uploader) == "Instance" then
+                State.ActiveUploader = uploader
+            end
+
+            if State.AutoUploadMinigame and target then
+                task.delay(0.05, function()
+                    if State.Running
+                        and State.AutoUploadMinigame
+                        and UploadData
+                        and UploadData.Parent
+                        and target
+                        and target.Parent
+                    then
+                        UploadData:FireServer("MinigameComplete", target)
+                    end
+                end)
+            end
+
+            return
+        end
+
+        if action == "Complete" or action == "StopMinigame" then
+            State.ActiveUploader = nil
+        end
+    end)
+end
+
+task.spawn(function()
+    while State.Running do
+        local lobbyScreen = getLobbyScreen()
+        local inLobby = lobbyScreen and lobbyScreen.Enabled == true
+
+        if inLobby then
+            if not State.StoryWasInLobby then
+                State.StoryWasInLobby = true
+                State.LastStoryKey = nil
+                State.StoryCompleting = false
+            end
+        else
+            if State.StoryWasInLobby then
+                State.StoryWasInLobby = false
+                State.LastStoryKey = nil
+                State.StoryCompleting = false
+                State.LastStoryAttempt = 0
+            end
+
+            if State.AutoStoryComplete
+                and IS_GAMEPLAY_PLACE
+                and currentGameMode() ~= "Main"
+                and isActiveStoryRun()
+            then
+                local key = normalizeCurrentLevel()
+                local now = os.clock()
+
+                if key
+                    and STORY_NEXT[key] ~= nil
+                    and State.LastStoryKey ~= key
+                    and not State.StoryCompleting
+                    and now - State.LastStoryAttempt >= State.StoryCompleteDelay
+                then
+                    instantCompleteStory(false)
+                end
+            end
+        end
+
+        task.wait(0.2)
+    end
+end)
+
+task.spawn(function()
+    while State.Running do
+        if State.AutoCompleteEndless
+            and IS_GAMEPLAY_PLACE
+            and currentGameMode() == "Main"
+            and not State.EndlessWorkerBusy
+        then
+            task.spawn(function()
+                runEndlessTaskPass(false)
+            end)
+        end
+
+        task.wait(0.75)
+    end
+end)
+
+local runtimeCleaned = false
+
+local function cleanupSaltyRuntime()
+    if runtimeCleaned then
+        return
+    end
+    runtimeCleaned = true
+
+    State.Unloading = true
+    State.Running = false
+    State.SpeedEnabled = false
+    State.Noclip = false
+    State.PlayerESP = false
+    State.ThreatESP = false
+    State.Fullbright = false
+    State.KeepObjectiveVisible = false
+    State.AutoDaily = false
+    State.AutoStoryQueue = false
+    State.AutoEndlessLaunch = false
+    State.AutoStoryComplete = false
+    State.AutoCompleteEndless = false
+    State.AutoMissionPrompts = false
+    State.AutoUploadMinigame = false
+    State.AutoFinishEndless = false
+    State.EndlessWorkerBusy = false
+
+    pcall(function()
+        applySpeedAssist(false)
+    end)
+
+    restoreCollisions()
+    restoreLighting()
+    clearEsp()
+
+    if State.EspFolder then
+        pcall(function()
+            State.EspFolder:Destroy()
+        end)
+        State.EspFolder = nil
+    end
+
+    for _, connection in ipairs(State.Connections) do
+        pcall(function()
+            connection:Disconnect()
+        end)
+    end
+    table.clear(State.Connections)
+
+    if ENV.__SALTY_TSN_VANTA == State then
+        ENV.__SALTY_TSN_VANTA = nil
+    end
+end
+
+-- IMPORTANT:
+-- Do NOT use Window:RegisterCleanup for this script.
+-- Vanta's wrapper executes registered cleanup synchronously BEFORE its native
+-- BaseDestroy call. Shadow Network has a lot of runtime state to restore, so
+-- doing that work first can delay/block the actual GUI destruction.
+--
+-- The underlying Vanta runtime already exposes Window:OnDestroy(), and invokes
+-- that callback asynchronously from Close:Destroy(). This lets the GUI die
+-- immediately while Salty cleans itself up behind it.
+if type(Window.OnDestroy) == "function" then
+    Window:OnDestroy(function()
+        State.Unloading = true
+
+        task.defer(function()
+            cleanupSaltyRuntime()
+        end)
+    end)
+end
+
+function State:Stop()
+    self.Unloading = true
+    self.Running = false
+
+    -- Kill the GUI FIRST using Vanta's native path.
+    if self.Window and type(self.Window.Destroy) == "function" then
+        local ok = pcall(function()
+            self.Window:Destroy()
+        end)
+
+        if ok then
