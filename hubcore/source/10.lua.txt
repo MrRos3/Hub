@@ -1,0 +1,186 @@
+            TextSize = 10,
+            FontFace = font(Enum.FontWeight.Regular),
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 57,
+            Parent = detailPanel,
+        })
+    end
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(18, 421),
+        Size = UDim2.new(1, -36, 0, 16),
+        BackgroundTransparency = 1,
+        Text = "Last updated  " .. entry.Updated,
+        TextColor3 = Color3.fromHex("#777783"),
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Regular),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 57,
+        Parent = detailPanel,
+    })
+
+    local favorite = create("TextButton", {
+        Position = UDim2.fromOffset(18, 452),
+        Size = UDim2.fromOffset(42, 36),
+        BackgroundColor3 = THEME.Surface2,
+        BorderSizePixel = 0,
+        Text = isFavorite(entry.Id) and "♥" or "♡",
+        TextColor3 = isFavorite(entry.Id) and THEME.AccentBright or THEME.Muted,
+        TextSize = 18,
+        FontFace = font(Enum.FontWeight.Medium),
+        AutoButtonColor = false,
+        ZIndex = 60,
+        Parent = detailPanel,
+    }, { corner(7), stroke(Color3.fromRGB(44, 44, 51), 0.1, 1) })
+    favorite.MouseButton1Click:Connect(function()
+        setFavorite(entry.Id, not isFavorite(entry.Id))
+        favorite.Text = isFavorite(entry.Id) and "♥" or "♡"
+        favorite.TextColor3 = isFavorite(entry.Id) and THEME.AccentBright or THEME.Muted
+        styleFilterButtons()
+        renderContent()
+    end)
+
+    makeLoadButton(detailPanel, entry, UDim2.new(1, -84, 0, 36), UDim2.fromOffset(66, 452), 60)
+
+    tween(detailPanel, 0.22, { Position = UDim2.new(1, -286, 0, 0) })
+end
+
+-- Interaction wiring --------------------------------------------------------
+for name, button in pairs(filterButtons) do
+    button.MouseEnter:Connect(function()
+        if currentFilter ~= name then
+            tween(button, 0.12, { BackgroundTransparency = 0.45, TextColor3 = THEME.TextSoft })
+        end
+    end)
+    button.MouseLeave:Connect(function()
+        if currentFilter ~= name then
+            tween(button, 0.12, { BackgroundTransparency = 1, TextColor3 = THEME.Muted })
+        end
+    end)
+    button.MouseButton1Click:Connect(function()
+        currentFilter = name
+        content.CanvasPosition = Vector2.zero
+        renderContent()
+    end)
+end
+
+sortButton.MouseEnter:Connect(function()
+    tween(sortButton, 0.12, { BackgroundColor3 = THEME.Surface2 })
+end)
+sortButton.MouseLeave:Connect(function()
+    tween(sortButton, 0.12, { BackgroundColor3 = THEME.Surface })
+end)
+sortButton.MouseButton1Click:Connect(function()
+    sortPopup.Visible = not sortPopup.Visible
+end)
+
+for i, optionButton in ipairs(sortPopup:GetChildren()) do
+    if optionButton:IsA("TextButton") then
+        optionButton.MouseButton1Click:Connect(function()
+            currentSort = optionButton.Text
+            settingsData.sort = currentSort
+            sortText.Text = currentSort
+            saveSettings()
+            renderContent()
+        end)
+    end
+end
+
+gridButton.MouseButton1Click:Connect(function()
+    currentView = "grid"
+    settingsData.view = currentView
+    saveSettings()
+    content.CanvasPosition = Vector2.zero
+    renderContent()
+end)
+listButton.MouseButton1Click:Connect(function()
+    currentView = "list"
+    settingsData.view = currentView
+    saveSettings()
+    content.CanvasPosition = Vector2.zero
+    renderContent()
+end)
+
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    content.CanvasPosition = Vector2.zero
+    renderContent()
+end)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then
+        return
+    end
+    if input.KeyCode == Enum.KeyCode.K and (UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)) then
+        searchBox:CaptureFocus()
+    elseif input.KeyCode == Enum.KeyCode.Escape then
+        if detailPanel then
+            closeDetails()
+        elseif sortPopup.Visible then
+            sortPopup.Visible = false
+        end
+    end
+end)
+
+-- Draggable header.
+do
+    local dragging = false
+    local dragStart
+    local startPos
+
+    header.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = main.Position
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+local shown = true
+local toggleConnection
+toggleConnection = UserInputService.InputBegan:Connect(function(input, processed)
+    if processed or input.KeyCode ~= TOGGLE_KEY then
+        return
+    end
+    shown = not shown
+    if shown then
+        gui.Enabled = true
+        blur.Enabled = true
+        blur.Size = 0
+        main.GroupTransparency = 1
+        tween(blur, 0.18, { Size = 8 })
+        tween(main, 0.2, { GroupTransparency = 0 })
+    else
+        tween(blur, 0.15, { Size = 0 })
+        local anim = tween(main, 0.15, { GroupTransparency = 1 })
+        task.delay(0.16, function()
+            if not shown and gui and gui.Parent then
+                gui.Enabled = false
+                blur.Enabled = false
+            end
+        end)
+    end
+end)
+
+renderContent()
+styleFilterButtons()
+styleViewButtons()
+
+return {
+    Gui = gui,
+    ToggleKey = TOGGLE_KEY,
+    Scripts = SCRIPTS,
+}
