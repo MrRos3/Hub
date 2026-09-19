@@ -152,6 +152,13 @@ local SCRIPTS = {
         Tags = { "piano", "music", "songs", "workstation" },
         Url = "https://raw.githubusercontent.com/MrRos3/Velora/main/loader.lua",
     },
+    {
+        Id = "shadow-network",
+        Name = "Shadow Network",
+        Description = "Salty Shadow Network v1.3.7",
+        Tags = { "shadow network", "items", "esp", "automation" },
+        Url = "https://raw.githubusercontent.com/MrRos3/Hub/main/scripts/ShadowNetwork.lua",
+    },
 }
 
 local function getGuiParent()
@@ -437,7 +444,7 @@ local countLabel = create("TextLabel", {
     Size = UDim2.fromOffset(104, 28),
     BackgroundColor3 = THEME.Element,
     BackgroundTransparency = 0.14,
-    Text = "1 script",
+    Text = "2 scripts",
     TextColor3 = THEME.Muted,
     TextSize = 9,
     FontFace = font(Enum.FontWeight.Medium),
@@ -580,7 +587,7 @@ local function runScript(entry)
             end)
             if not ok then
                 setShown(true)
-                toast("Velora failed: " .. tostring(err))
+                toast(entry.Name .. " failed: " .. tostring(err))
             end
         end)
     end
