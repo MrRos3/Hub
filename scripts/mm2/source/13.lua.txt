@@ -1,0 +1,441 @@
+                Runtime.CoinMaximum
+            ),
+
+        "Bag Full: "
+            .. tostring(
+                Runtime.CoinBagFull
+            ),
+
+        "Routes: "
+            .. tostring(
+                Runtime.CoinConfirmed
+            )
+            .. "/"
+            .. tostring(
+                Runtime.CoinRouteAttempts
+            ),
+
+        "",
+
+        "=== ENGINE ===",
+
+        "Action: "
+            .. tostring(
+                Runtime.Action
+                or "Idle"
+            ),
+
+    }, "\n")
+end
+
+
+--==============================================================
+-- VANTA UI
+--==============================================================
+
+local VantaUI =
+    loadstring(
+        game:HttpGet(
+            "https://raw.githubusercontent.com/MrRos3/VantaUI/main/main.lua"
+        )
+    )()
+
+
+Runtime.VantaUI =
+    VantaUI
+
+
+pcall(function()
+
+    VantaUI:
+    SetTheme(
+        "Salty Special"
+    )
+
+end)
+
+
+local Window =
+    VantaUI:
+    CreateWindow({
+
+        Title =
+            "Salty MM2",
+
+        Icon =
+            "skull",
+
+        OpenButton = {
+
+            Title =
+                "Salty MM2",
+
+            Icon =
+                "skull",
+
+            Enabled =
+                true,
+
+            Draggable =
+                true,
+
+            OnlyMobile =
+                false,
+
+            OnlyIcon =
+                false,
+        },
+    })
+
+
+Runtime.Window =
+    Window
+
+
+pcall(function()
+
+    Window:
+    Tag({
+
+        Title =
+            VERSION,
+
+        Icon =
+            "zap",
+
+        Color =
+            Color3.fromHex(
+                "#151116"
+            ),
+
+        Border =
+            true,
+    })
+
+end)
+
+
+--==============================================================
+-- TABS
+--==============================================================
+
+local HomeTab =
+    Window:
+    Tab({
+        Title = "Home",
+        Icon = "house",
+    })
+
+
+local RolesTab =
+    Window:
+    Tab({
+        Title = "Roles",
+        Icon = "users",
+    })
+
+
+local SheriffTab =
+    Window:
+    Tab({
+        Title = "Sheriff",
+        Icon = "crosshair",
+    })
+
+
+local GunTab =
+    Window:
+    Tab({
+        Title = "Dropped Gun",
+        Icon = "map-pin",
+    })
+
+
+local CoinsTab =
+    Window:
+    Tab({
+        Title = "Coins",
+        Icon = "coins",
+    })
+
+
+local SpectateTab =
+    Window:
+    Tab({
+        Title = "Spectate",
+        Icon = "eye",
+    })
+
+
+local MovementTab =
+    Window:
+    Tab({
+        Title = "Movement",
+        Icon = "gauge",
+    })
+
+
+local UtilityTab =
+    Window:
+    Tab({
+        Title = "Utility",
+        Icon = "wrench",
+    })
+
+
+--==============================================================
+-- HOME
+--==============================================================
+
+HomeTab:
+Toggle({
+
+    Title =
+        "Performance Mode",
+
+    Desc =
+        "Lower refresh rates and render fewer ESP objects.",
+
+    Icon =
+        "cpu",
+
+    Value =
+        true,
+
+    Callback =
+        SetPerformanceMode,
+})
+
+
+HomeTab:
+Toggle({
+
+    Title =
+        "Auto Hero Mode",
+
+    Desc =
+        "Pickup dropped gun + equip + shoot Murderer.",
+
+    Icon =
+        "crown",
+
+    Value =
+        false,
+
+    Callback =
+        function(value)
+
+            Settings.AutoGunPickup =
+                value
+
+
+            Settings.AutoEquipGun =
+                value
+
+
+            Settings.AutoShootMurderer =
+                value
+        end,
+})
+
+
+HomeTab:
+Button({
+
+    Title =
+        "Round Status",
+
+    Icon =
+        "activity",
+
+    Callback =
+        function()
+
+            UpdateRoleCache()
+
+
+            Notify(
+                "Round",
+
+                "You: "
+                .. Runtime.LocalRole
+                .. " • Murderer: "
+                .. (
+                    Runtime.Murderer
+                    and Runtime.Murderer.DisplayName
+                    or "?"
+                ),
+
+                "activity"
+            )
+        end,
+})
+
+
+--==============================================================
+-- ROLES
+--==============================================================
+
+RolesTab:
+Toggle({
+
+    Title =
+        "Role ESP",
+
+    Icon =
+        "eye",
+
+    Value =
+        true,
+
+    Callback =
+        function(value)
+
+            Settings.RoleESP =
+                value
+
+
+            if not value
+                and not Settings.RoleLabels
+            then
+
+                ClearPlayerESP()
+            end
+        end,
+})
+
+
+RolesTab:
+Toggle({
+
+    Title =
+        "Role Labels",
+
+    Desc =
+        "Role + distance.",
+
+    Icon =
+        "tag",
+
+    Value =
+        true,
+
+    Callback =
+        function(value)
+
+            Settings.RoleLabels =
+                value
+
+
+            if not value
+                and not Settings.RoleESP
+            then
+
+                ClearPlayerESP()
+            end
+        end,
+})
+
+
+RolesTab:
+Toggle({
+
+    Title =
+        "Show Innocents",
+
+    Icon =
+        "users",
+
+    Value =
+        false,
+
+    Callback =
+        function(value)
+
+            Settings.ShowInnocents =
+                value
+        end,
+})
+
+
+RolesTab:
+Toggle({
+
+    Title =
+        "Show Dead",
+
+    Icon =
+        "skull",
+
+    Value =
+        false,
+
+    Callback =
+        function(value)
+
+            Settings.ShowDead =
+                value
+        end,
+})
+
+
+RolesTab:
+Toggle({
+
+    Title =
+        "Murderer Warning",
+
+    Icon =
+        "triangle-alert",
+
+    Value =
+        true,
+
+    Callback =
+        function(value)
+
+            Settings.MurdererWarning =
+                value
+        end,
+})
+
+
+RolesTab:
+Button({
+
+    Title =
+        "Warning Distance • 15",
+
+    Callback =
+        function()
+
+            Settings.WarningDistance =
+                15
+        end,
+})
+
+
+RolesTab:
+Button({
+
+    Title =
+        "Warning Distance • 25",
+
+    Callback =
+        function()
+
+            Settings.WarningDistance =
+                25
+        end,
+})
+
+
+RolesTab:
+Button({
+
+    Title =
+        "Warning Distance • 40",
+
+    Callback =
+        function()
+
