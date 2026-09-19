@@ -1,0 +1,444 @@
+    if not object then
+        return
+    end
+
+
+    local highlight =
+        object:
+        FindFirstChild(
+            "__SaltyGunESP"
+        )
+
+
+    if not highlight then
+
+        highlight =
+            Instance.new(
+                "Highlight"
+            )
+
+
+        highlight.Name =
+            "__SaltyGunESP"
+
+
+        highlight.Adornee =
+            object
+
+
+        highlight.DepthMode =
+            Enum.HighlightDepthMode
+                .AlwaysOnTop
+
+
+        highlight.FillTransparency =
+            0.72
+
+
+        highlight.OutlineTransparency =
+            0.05
+
+
+        highlight.FillColor =
+            Color3.fromRGB(
+                255,
+                220,
+                70
+            )
+
+
+        highlight.OutlineColor =
+            Color3.fromRGB(
+                255,
+                255,
+                255
+            )
+
+
+        highlight.Parent =
+            object
+    end
+end
+
+
+task.spawn(function()
+
+    while Runtime.Running do
+
+        if Settings.DroppedGunESP
+            or Settings.AutoGunPickup
+        then
+
+            UpdateGunESP()
+        end
+
+
+        task.wait(
+            Settings.GunESPInterval
+        )
+    end
+end)
+
+
+--==============================================================
+-- LIGHTWEIGHT PHYSICAL ROUTE
+--==============================================================
+
+local function MoveOnto(
+    part,
+    delay
+)
+
+    if not part
+        or not part.Parent
+    then
+
+        return false
+    end
+
+
+    local character,
+        humanoid =
+        GetCharacter()
+
+
+    if not character
+        or not humanoid
+    then
+
+        return false
+    end
+
+
+    humanoid.Sit =
+        false
+
+
+    StopMomentum()
+
+
+    character:
+    PivotTo(
+
+        part.CFrame
+        * CFrame.new(
+            0,
+            1.4,
+            0
+        )
+    )
+
+
+    StopMomentum()
+
+
+    task.wait(
+        delay or 0.10
+    )
+
+
+    return true
+end
+
+
+--==============================================================
+-- PICKUP GUN
+--==============================================================
+
+local function PickupGun(
+    notify
+)
+
+    if Runtime.Action
+        or not CharacterAlive()
+        or HasGun()
+        or Runtime.LocalRole
+            == "Murderer"
+    then
+
+        return false
+    end
+
+
+    local object,
+        part =
+        FindDroppedGun(
+            true
+        )
+
+
+    if not object
+        or not part
+    then
+
+        Runtime.LastGunPickup =
+            "Not found"
+
+
+        if notify then
+
+            Notify(
+                "Dropped Gun",
+                "Not detected.",
+                "circle-help"
+            )
+        end
+
+
+        return false
+    end
+
+
+    Runtime.Action =
+        "Gun"
+
+
+    Runtime.GunPickupAttempts +=
+        1
+
+
+    MoveOnto(
+        part,
+        Settings.GunPickupDelay
+    )
+
+
+    task.wait(
+        0.12
+    )
+
+
+    local success =
+        HasGun()
+
+
+    Runtime.Action =
+        nil
+
+
+    Runtime.NextGunPickup =
+        os.clock()
+        + Settings.GunPickupCooldown
+
+
+    if success then
+
+        Runtime.GunPickupSuccess +=
+            1
+
+
+        Runtime.LastGunPickup =
+            "Picked up"
+
+
+        if Settings.AutoEquipGun then
+
+            EquipWeapon(
+                "Gun"
+            )
+        end
+
+    else
+
+        Runtime.LastGunPickup =
+            "Touched • waiting"
+    end
+
+
+    if notify then
+
+        Notify(
+            "Dropped Gun",
+
+            success
+                and "PICKED UP 🔫"
+                or Runtime.LastGunPickup,
+
+            success
+                and "badge-check"
+                or "circle-alert"
+        )
+    end
+
+
+    return success
+end
+
+
+task.spawn(function()
+
+    while Runtime.Running do
+
+        if Settings.AutoGunPickup
+            and not Runtime.Action
+            and not HasGun()
+            and Runtime.LocalRole
+                ~= "Murderer"
+            and os.clock()
+                >= Runtime.NextGunPickup
+        then
+
+            PickupGun(
+                false
+            )
+        end
+
+
+        task.wait(
+            0.18
+        )
+    end
+end)
+
+
+--==============================================================
+-- COIN CACHE
+--==============================================================
+
+local function RegisterCoin(
+    coin
+)
+
+    if coin
+        and coin:IsA(
+            "BasePart"
+        )
+    then
+
+        Runtime.Coins[
+            coin
+        ] =
+            true
+    end
+end
+
+
+local function RemoveCoin(
+    coin
+)
+
+    Runtime.Coins[
+        coin
+    ] =
+        nil
+
+
+    Runtime.VisitedCoins[
+        coin
+    ] =
+        nil
+
+
+    local gui =
+        Runtime.CoinESPObjects[
+            coin
+        ]
+
+
+    if gui then
+
+        pcall(function()
+            gui:Destroy()
+        end)
+
+
+        Runtime.CoinESPObjects[
+            coin
+        ] =
+            nil
+    end
+end
+
+
+for _,
+    coin
+in ipairs(
+    CollectionService:
+    GetTagged(
+        "ServerCoinPart"
+    )
+)
+do
+
+    RegisterCoin(
+        coin
+    )
+end
+
+
+Runtime:
+AddConnection(
+
+    CollectionService:
+    GetInstanceAddedSignal(
+        "ServerCoinPart"
+    ):
+    Connect(
+        RegisterCoin
+    )
+)
+
+
+Runtime:
+AddConnection(
+
+    CollectionService:
+    GetInstanceRemovedSignal(
+        "ServerCoinPart"
+    ):
+    Connect(
+        RemoveCoin
+    )
+)
+
+
+--==============================================================
+-- COIN EVENT
+--==============================================================
+
+Runtime:
+AddConnection(
+
+    CoinsStarted.OnClientEvent:
+    Connect(function()
+
+        Runtime.CoinBagFull =
+            false
+
+
+        Runtime.CoinCurrent =
+            0
+
+
+        Runtime.CoinMaximum =
+            0
+
+
+        table.clear(
+            Runtime.VisitedCoins
+        )
+
+    end)
+)
+
+
+Runtime:
+AddConnection(
+
+    CoinCollected.OnClientEvent:
+    Connect(function(
+        _,
+        current,
+        maximum
+    )
+
+        Runtime.CoinEvents +=
+            1
+
+
+        Runtime.CoinCurrent =
+            tonumber(current)
+            or Runtime.CoinCurrent
+
+
+        Runtime.CoinMaximum =
