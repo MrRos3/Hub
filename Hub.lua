@@ -1,5 +1,5 @@
--- Velora Hub bootstrap v21
--- Smooth rounded shell, fixed position, and background blur.
+-- Velora Hub bootstrap v22
+-- Rounded fixed shell, background blur, unclipped cards, and clean script handoff.
 
 local BASE_URL = "https://raw.githubusercontent.com/MrRos3/Hub/ee46da2e478a880769e84c7382cb8e393e4245ea/Hub.lua"
 local cache = tostring(os.time()) .. "-" .. tostring(math.random(100000, 999999))
@@ -46,6 +46,13 @@ replacePlain(
     '    Active = false,\n    Parent = main,\n}, {\n    corner(12),\n})'
 )
 
+-- Give UIStroke a couple of pixels of breathing room inside the ScrollingFrame.
+-- Without this, Roblox clips the outside half of the top/left card borders.
+replacePlain(
+    'local gridLayout = create("UIGridLayout", {',
+    'create("UIPadding", {\n    PaddingTop = UDim.new(0, 2),\n    PaddingLeft = UDim.new(0, 2),\n    PaddingRight = UDim.new(0, 2),\n    PaddingBottom = UDim.new(0, 2),\n    Parent = grid,\n})\n\nlocal gridLayout = create("UIGridLayout", {'
+)
+
 replacePlain(
     'local function setShown(value)\n    shown = value\n    gui.Enabled = value\nend',
     'local function setShown(value)\n    shown = value\n    if value then\n        gui.Enabled = true\n        if blur and blur.Parent then\n            tween(blur, 0.18, { Size = 14 })\n        end\n    else\n        if blur and blur.Parent then\n            tween(blur, 0.14, { Size = 0 })\n        end\n        gui.Enabled = false\n    end\nend'
@@ -61,9 +68,24 @@ replacePlain(
     '        dragging = false'
 )
 
+-- Loading a script bypasses setShown(), so clear blur explicitly before the Hub hides.
+replacePlain(
+    '        notify(entry.Name, "Loading latest build...", "info")\n        gui.Enabled = false\n        shown = false',
+    '        notify(entry.Name, "Loading latest build...", "info")\n        if blur and blur.Parent then\n            blur.Size = 0\n        end\n        gui.Enabled = false\n        shown = false'
+)
+
+-- If a script fails and the Hub comes back, restore its blur too.
+replacePlain(
+    '            if not ok then\n                gui.Enabled = true\n                shown = true\n                notify(entry.Name .. " could not launch", compactError(err), "error")',
+    '            if not ok then\n                gui.Enabled = true\n                shown = true\n                if blur and blur.Parent then\n                    blur.Size = 14\n                end\n                notify(entry.Name .. " could not launch", compactError(err), "error")'
+)
+
 local chunk, compileError = loadstring(source)
 if not chunk then
-    error("[Velora Hub] Failed to compile v21: " .. tostring(compileError), 0)
+    if blur and blur.Parent then
+        blur:Destroy()
+    end
+    error("[Velora Hub] Failed to compile v22: " .. tostring(compileError), 0)
 end
 
 return chunk()
