@@ -1,0 +1,370 @@
+--==================================================
+
+-- FIND ORIGINAL tryHit()
+
+--==================================================
+
+
+local function HasConstant(
+
+    constants,
+
+    wanted
+
+)
+
+    for _, constant in pairs(
+
+        constants
+
+    ) do
+
+        if constant == wanted then
+
+            return true
+
+        end
+
+    end
+
+
+    return false
+
+end
+
+
+local function FindTryHit()
+
+    if not getgc
+
+        or not GetConstants
+
+    then
+
+        return nil,
+
+            "getgc/debug.getconstants unavailable"
+
+    end
+
+
+    local success, objects =
+
+        pcall(
+
+            getgc,
+
+            true
+
+        )
+
+
+    if not success then
+
+        return nil,
+
+            "getgc failed"
+
+    end
+
+
+    for _, object in ipairs(objects) do
+
+        if type(object) == "function"
+
+            and not IsExecutorClosure(object)
+
+        then
+
+            local ok, constants =
+
+                pcall(
+
+                    GetConstants,
+
+                    object
+
+                )
+
+
+            if ok
+
+                and type(constants) == "table"
+
+            then
+
+                if HasConstant(
+
+                    constants,
+
+                    "PERFECT!"
+
+                )
+
+                    and HasConstant(
+
+                        constants,
+
+                        "MISS"
+
+                    )
+
+                    and HasConstant(
+
+                        constants,
+
+                        "perfect"
+
+                    )
+
+                    and HasConstant(
+
+                        constants,
+
+                        "good"
+
+                    )
+
+                    and HasConstant(
+
+                        constants,
+
+                        "rbxassetid://134189051248016"
+
+                    )
+
+                then
+
+                    return object
+
+                end
+
+            end
+
+        end
+
+    end
+
+
+    return nil,
+
+        "tryHit closure not found"
+
+end
+
+
+local TryHit
+
+local TryHitError
+
+
+TryHit, TryHitError =
+
+    FindTryHit()
+
+
+--==================================================
+
+-- NOTES
+
+--==================================================
+
+
+local Notes
+
+
+local function LooksLikeNote(note)
+
+    return type(note) == "table"
+
+        and type(note.lane) == "number"
+
+        and type(note.hitTime) == "number"
+
+        and note.hit ~= nil
+
+        and note.missed ~= nil
+
+end
+
+
+local function FindNotesTable()
+
+    if not TryHit
+
+        or not GetUpvalues
+
+    then
+
+        return nil
+
+    end
+
+
+    local success, upvalues =
+
+        pcall(
+
+            GetUpvalues,
+
+            TryHit
+
+        )
+
+
+    if not success
+
+        or type(upvalues) ~= "table"
+
+    then
+
+        return nil
+
+    end
+
+
+    for _, value in pairs(
+
+        upvalues
+
+    ) do
+
+        if type(value) == "table" then
+
+            local inspected = 0
+
+            local matches = 0
+
+
+            for _, entry in ipairs(value) do
+
+                inspected += 1
+
+
+                if LooksLikeNote(entry) then
+
+                    matches += 1
+
+                end
+
+
+                if inspected >= 8 then
+
+                    break
+
+                end
+
+            end
+
+
+            if matches >= 1 then
+
+                return value
+
+            end
+
+        end
+
+    end
+
+
+    return nil
+
+end
+
+
+--==================================================
+
+-- STATE
+
+--==================================================
+
+
+local State = {
+
+    InBattle = false,
+
+
+    Cursor = 1,
+
+
+    LastNoteCount = 0,
+
+
+    AutoHits = 0,
+
+
+    AcquireToken = 0,
+
+
+    LastStatusText = nil,
+
+
+    Engine =
+
+        TryHit
+
+        and "tryHit found"
+
+        or (
+
+            "ERROR: "
+
+            .. tostring(
+
+                TryHitError
+
+            )
+
+        ),
+
+}
+
+
+local PlannedQuality =
+
+    setmetatable(
+
+        {},
+
+        {
+
+            __mode = "k",
+
+        }
+
+    )
+
+
+--==================================================
+
+-- RESET NOTES
+
+--==================================================
+
+
+local function ResetNotes()
+
+    State.AcquireToken += 1
+
+
+    Notes = nil
+
+
+    State.Cursor = 1
+
+    State.LastNoteCount = 0
+
+
+    PlannedQuality =
+
+        setmetatable(
+
+            {},
+
+            {
+
+                __mode = "k",
+
+            }
+
