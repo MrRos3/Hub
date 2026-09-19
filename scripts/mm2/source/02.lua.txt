@@ -1,0 +1,370 @@
+    -- DROPPED GUN
+    ------------------------------------------------------------
+
+    DroppedGunESP = true,
+
+    AutoGunPickup = false,
+
+    GunPickupDelay = 0.13,
+
+    GunPickupCooldown = 0.8,
+
+
+    ------------------------------------------------------------
+    -- COINS
+    ------------------------------------------------------------
+
+    CoinESP = false,
+
+    AutoCoinFarm = false,
+
+    AvoidMurdererCoins = true,
+
+    CoinDangerDistance = 18,
+
+    CoinMoveDelay = 0.11,
+
+    CoinRetryCooldown = 1.0,
+
+
+    ------------------------------------------------------------
+    -- MOVEMENT
+    ------------------------------------------------------------
+
+    SpeedEnabled = false,
+
+    Speed = 24,
+
+    InfiniteJump = false,
+
+    Noclip = false,
+
+    Fly = false,
+
+    FlySpeed = 55,
+
+
+    ------------------------------------------------------------
+    -- UTILITY
+    ------------------------------------------------------------
+
+    AntiAFK = false,
+}
+
+
+--==============================================================
+-- RUNTIME
+--==============================================================
+
+local Runtime = {
+
+    Running = true,
+
+    Connections = {},
+
+    Action = nil,
+
+
+    ------------------------------------------------------------
+    -- ROLE CACHE
+    ------------------------------------------------------------
+
+    Murderer = nil,
+
+    Sheriff = nil,
+
+    Hero = nil,
+
+    LocalRole = "Unknown",
+
+    RoundActive = false,
+
+    LastRoleRefresh = 0,
+
+
+    ------------------------------------------------------------
+    -- PLAYER ESP
+    ------------------------------------------------------------
+
+    PlayerESP = {},
+
+
+    ------------------------------------------------------------
+    -- DROPPED GUN CACHE
+    ------------------------------------------------------------
+
+    GunCandidates = {},
+
+    CurrentDroppedGun = nil,
+
+    CurrentDroppedGunPart = nil,
+
+    LastGunFallbackScan = 0,
+
+    GunPickupAttempts = 0,
+
+    GunPickupSuccess = 0,
+
+    NextGunPickup = 0,
+
+    LastGunPickup = "None",
+
+
+    ------------------------------------------------------------
+    -- SHERIFF
+    ------------------------------------------------------------
+
+    LastShot = 0,
+
+    ShotRequests = 0,
+
+    LastShotStatus = "None",
+
+
+    ------------------------------------------------------------
+    -- COIN CACHE
+    ------------------------------------------------------------
+
+    Coins = {},
+
+    CoinESPObjects = {},
+
+    CoinBagFull = false,
+
+    CoinEvents = 0,
+
+    CoinCurrent = 0,
+
+    CoinMaximum = 0,
+
+    CoinRouteAttempts = 0,
+
+    CoinConfirmed = 0,
+
+    VisitedCoins = {},
+
+
+    ------------------------------------------------------------
+    -- WARNING
+    ------------------------------------------------------------
+
+    DangerInside = false,
+
+    LastDangerNotify = 0,
+
+
+    ------------------------------------------------------------
+    -- MOVEMENT
+    ------------------------------------------------------------
+
+    NoclipOriginal = {},
+
+    FlyVelocity = nil,
+
+    FlyGyro = nil,
+
+    FlyToggle = nil,
+
+
+    ------------------------------------------------------------
+    -- GUI
+    ------------------------------------------------------------
+
+    VantaUI = nil,
+
+    Window = nil,
+}
+
+
+ENV.__SALTY_MM2 =
+    Runtime
+
+
+function Runtime:AddConnection(connection)
+
+    table.insert(
+        self.Connections,
+        connection
+    )
+
+    return connection
+end
+
+
+--==============================================================
+-- NOTIFY
+--==============================================================
+
+local function Notify(
+    title,
+    text,
+    icon
+)
+
+    print(
+        "[Salty MM2]",
+        title,
+        text
+    )
+
+
+    if not Runtime.VantaUI then
+        return
+    end
+
+
+    pcall(function()
+
+        Runtime.VantaUI:
+        Notify({
+
+            Title = tostring(title),
+
+            Content = tostring(text),
+
+            Desc = tostring(text),
+
+            Icon = icon or "info",
+
+            Duration = 3,
+        })
+
+    end)
+end
+
+
+--==============================================================
+-- CHARACTER
+--==============================================================
+
+local function GetCharacter()
+
+    local character =
+        LocalPlayer.Character
+
+
+    if not character then
+        return nil, nil, nil
+    end
+
+
+    return
+        character,
+
+        character:
+            FindFirstChildOfClass(
+                "Humanoid"
+            ),
+
+        character:
+            FindFirstChild(
+                "HumanoidRootPart"
+            )
+end
+
+
+local function CharacterAlive()
+
+    local _,
+        humanoid =
+        GetCharacter()
+
+
+    return humanoid
+        and humanoid.Health > 0
+end
+
+
+local function StopMomentum()
+
+    local _,
+        _,
+        root =
+        GetCharacter()
+
+
+    if root then
+
+        root.AssemblyLinearVelocity =
+            Vector3.zero
+
+        root.AssemblyAngularVelocity =
+            Vector3.zero
+    end
+end
+
+
+--==============================================================
+-- ROUND DATA
+--==============================================================
+
+local function GetRoundData()
+
+    if type(
+        CurrentRoundClient.PlayerData
+    ) == "table"
+    then
+
+        return CurrentRoundClient.PlayerData
+    end
+
+
+    return {}
+end
+
+
+local function RefreshRoundData()
+
+    if type(
+        CurrentRoundClient
+            .GetLatestPlayerData
+    ) ~= "function"
+    then
+
+        return false
+    end
+
+
+    local ok,
+        data =
+        pcall(function()
+
+            return CurrentRoundClient
+                .GetLatestPlayerData()
+
+        end)
+
+
+    if not ok then
+
+        ok,
+        data =
+            pcall(function()
+
+                return CurrentRoundClient:
+                    GetLatestPlayerData()
+
+            end)
+    end
+
+
+    if ok
+        and type(data)
+            == "table"
+    then
+
+        CurrentRoundClient.PlayerData =
+            data
+
+        return true
+    end
+
+
+    return false
+end
+
+
+local function PlayerData(
+    player
+)
+
