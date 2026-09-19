@@ -1,0 +1,472 @@
+        "Reset Coin Bag",
+
+    Icon =
+        "refresh-cw",
+
+    Callback =
+        function()
+
+            Runtime.CoinBagFull =
+                false
+
+
+            table.clear(
+                Runtime.VisitedCoins
+            )
+        end,
+})
+
+
+--==============================================================
+-- SPECTATE
+--==============================================================
+
+SpectateTab:
+Button({
+
+    Title =
+        "Toggle Native Spectate",
+
+    Icon =
+        "eye",
+
+    Callback =
+        ToggleSpectate,
+})
+
+
+SpectateTab:
+Button({
+
+    Title =
+        "Previous",
+
+    Icon =
+        "chevron-left",
+
+    Callback =
+        function()
+
+            NavigateSpectate(
+                -1
+            )
+        end,
+})
+
+
+SpectateTab:
+Button({
+
+    Title =
+        "Next",
+
+    Icon =
+        "chevron-right",
+
+    Callback =
+        function()
+
+            NavigateSpectate(
+                1
+            )
+        end,
+})
+
+
+SpectateTab:
+Button({
+
+    Title =
+        "Spectate Murderer",
+
+    Icon =
+        "skull",
+
+    Callback =
+        function()
+
+            SpectatePlayer(
+                Runtime.Murderer
+            )
+        end,
+})
+
+
+SpectateTab:
+Button({
+
+    Title =
+        "Spectate Sheriff / Hero",
+
+    Icon =
+        "crosshair",
+
+    Callback =
+        function()
+
+            SpectatePlayer(
+                GetSheriffOrHero()
+            )
+        end,
+})
+
+
+SpectateTab:
+Button({
+
+    Title =
+        "Return Camera",
+
+    Icon =
+        "rotate-ccw",
+
+    Callback =
+        CancelSpectate,
+})
+
+
+--==============================================================
+-- MOVEMENT
+--==============================================================
+
+MovementTab:
+Toggle({
+
+    Title =
+        "Speed Override",
+
+    Icon =
+        "gauge",
+
+    Value =
+        false,
+
+    Callback =
+        function(value)
+
+            Settings.SpeedEnabled =
+                value
+
+
+            if value then
+                ApplySpeed()
+            end
+        end,
+})
+
+
+MovementTab:
+Button({
+
+    Title = "Speed 16",
+
+    Callback =
+        function()
+
+            Settings.Speed =
+                16
+
+            ApplySpeed()
+        end,
+})
+
+
+MovementTab:
+Button({
+
+    Title = "Speed 24",
+
+    Callback =
+        function()
+
+            Settings.Speed =
+                24
+
+            ApplySpeed()
+        end,
+})
+
+
+MovementTab:
+Button({
+
+    Title = "Speed 32",
+
+    Callback =
+        function()
+
+            Settings.Speed =
+                32
+
+            ApplySpeed()
+        end,
+})
+
+
+MovementTab:
+Button({
+
+    Title = "Speed 50",
+
+    Callback =
+        function()
+
+            Settings.Speed =
+                50
+
+            ApplySpeed()
+        end,
+})
+
+
+MovementTab:
+Toggle({
+
+    Title =
+        "Infinite Jump",
+
+    Icon =
+        "chevrons-up",
+
+    Value =
+        false,
+
+    Callback =
+        function(value)
+
+            Settings.InfiniteJump =
+                value
+        end,
+})
+
+
+MovementTab:
+Toggle({
+
+    Title =
+        "Noclip",
+
+    Icon =
+        "ghost",
+
+    Value =
+        false,
+
+    Callback =
+        function(value)
+
+            Settings.Noclip =
+                value
+
+
+            if value then
+
+                ApplyNoclip()
+
+            else
+
+                RestoreNoclip()
+            end
+        end,
+})
+
+
+Runtime.FlyToggle =
+    MovementTab:
+    Toggle({
+
+        Title =
+            "Fly • F",
+
+        Desc =
+            "WASD • Space • Ctrl",
+
+        Icon =
+            "plane",
+
+        Value =
+            false,
+
+        Callback =
+            function(value)
+
+                SetFly(
+                    value
+                )
+            end,
+    })
+
+
+MovementTab:
+Button({
+
+    Title = "Fly 35",
+
+    Callback =
+        function()
+
+            Settings.FlySpeed =
+                35
+        end,
+})
+
+
+MovementTab:
+Button({
+
+    Title = "Fly 55",
+
+    Callback =
+        function()
+
+            Settings.FlySpeed =
+                55
+        end,
+})
+
+
+MovementTab:
+Button({
+
+    Title = "Fly 90",
+
+    Callback =
+        function()
+
+            Settings.FlySpeed =
+                90
+        end,
+})
+
+
+--==============================================================
+-- UTILITY
+--==============================================================
+
+UtilityTab:
+Toggle({
+
+    Title =
+        "Anti AFK",
+
+    Icon =
+        "coffee",
+
+    Value =
+        false,
+
+    Callback =
+        function(value)
+
+            Settings.AntiAFK =
+                value
+        end,
+})
+
+
+UtilityTab:
+Button({
+
+    Title =
+        "Refresh Roles",
+
+    Icon =
+        "refresh-cw",
+
+    Callback =
+        function()
+
+            RefreshRoundData()
+
+            UpdateRoleCache()
+
+
+            Notify(
+                "Roles",
+                "Refreshed.",
+                "refresh-cw"
+            )
+        end,
+})
+
+
+UtilityTab:
+Button({
+
+    Title =
+        "Copy Diagnostics",
+
+    Icon =
+        "clipboard",
+
+    Callback =
+        function()
+
+            local text =
+                Diagnostics()
+
+
+            if type(setclipboard)
+                == "function"
+            then
+
+                setclipboard(
+                    text
+                )
+
+
+                Notify(
+                    "Diagnostics",
+                    "Copied!",
+                    "clipboard-check"
+                )
+
+            else
+
+                print(
+                    "\n"
+                    .. text
+                    .. "\n"
+                )
+            end
+        end,
+})
+
+
+UtilityTab:
+Button({
+
+    Title =
+        "Print Diagnostics",
+
+    Icon =
+        "terminal",
+
+    Callback =
+        function()
+
+            print(
+                "\n"
+                .. Diagnostics()
+                .. "\n"
+            )
+        end,
+})
+
+
+--==============================================================
+-- DESTROY
+--==============================================================
+
+function Runtime:Destroy()
+
+    if not self.Running then
+        return
+    end
+
+
+    self.Running =
+        false
+
+
+    Settings.RoleESP =
