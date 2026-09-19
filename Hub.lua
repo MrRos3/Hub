@@ -1,5 +1,5 @@
--- Velora Hub bootstrap v22
--- Rounded fixed shell, background blur, unclipped cards, and clean script handoff.
+-- Velora Hub bootstrap v23
+-- Rounded fixed shell, background blur, unclipped cards, clean script handoff, and refreshed Velora Piano artwork.
 
 local BASE_URL = "https://raw.githubusercontent.com/MrRos3/Hub/ee46da2e478a880769e84c7382cb8e393e4245ea/Hub.lua"
 local cache = tostring(os.time()) .. "-" .. tostring(math.random(100000, 999999))
@@ -53,6 +53,17 @@ replacePlain(
     'create("UIPadding", {\n    PaddingTop = UDim.new(0, 2),\n    PaddingLeft = UDim.new(0, 2),\n    PaddingRight = UDim.new(0, 2),\n    PaddingBottom = UDim.new(0, 2),\n    Parent = grid,\n})\n\nlocal gridLayout = create("UIGridLayout", {'
 )
 
+-- Force Velora Piano to bypass any stale raw/CDN or local executor cache.
+replacePlain(
+    'ImageUrl = "https://raw.githubusercontent.com/MrRos3/Hub/main/assets/cards/velora-piano.jpg",',
+    'ImageUrl = "https://raw.githubusercontent.com/MrRos3/Hub/main/assets/cards/velora-piano.jpg?v=visual-piano-v2",'
+)
+
+replacePlain(
+    '    local path = "SaltyHub/assets/card_" .. tostring(entry.Id) .. "_v20.jpg"',
+    '    local suffix = entry.Id == "velora-piano" and "_visual_piano_v2.jpg" or "_v20.jpg"\n    local path = "SaltyHub/assets/card_" .. tostring(entry.Id) .. suffix'
+)
+
 replacePlain(
     'local function setShown(value)\n    shown = value\n    gui.Enabled = value\nend',
     'local function setShown(value)\n    shown = value\n    if value then\n        gui.Enabled = true\n        if blur and blur.Parent then\n            tween(blur, 0.18, { Size = 14 })\n        end\n    else\n        if blur and blur.Parent then\n            tween(blur, 0.14, { Size = 0 })\n        end\n        gui.Enabled = false\n    end\nend'
@@ -85,7 +96,7 @@ if not chunk then
     if blur and blur.Parent then
         blur:Destroy()
     end
-    error("[Velora Hub] Failed to compile v22: " .. tostring(compileError), 0)
+    error("[Velora Hub] Failed to compile v23: " .. tostring(compileError), 0)
 end
 
 return chunk()
