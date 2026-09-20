@@ -194,6 +194,75 @@ end)
 local function runRemote(entry)]==],
     "terminate close button"
 )
+
+
+-- Remove the extra tiny circle from the Loading label; keep the animated spinner only.
+replacePlain(
+[==[        Text = loading[entry.Id] and "◌  Loading..." or loaded[entry.Id] and "✓  Loaded" or "▶  Load Script",]==],
+[==[        Text = loading[entry.Id] and "Loading..." or loaded[entry.Id] and "✓  Loaded" or "▶  Load Script",]==],
+    "loading label cleanup"
+)
+
+-- Keep the Hub open while the script is loading.
+replacePlain(
+[==[    if loading[entry.Id] then
+        return
+    end
+    shown = false
+    gui.Enabled = false
+    blur.Size = 0
+    blur.Enabled = false
+    loading[entry.Id] = true]==],
+[==[    if loading[entry.Id] then
+        return
+    end
+    loading[entry.Id] = true]==],
+    "keep hub visible during script load"
+)
+
+-- Close the Hub only after the script finishes loading successfully.
+replacePlain(
+[==[        if ok then
+            loaded[entry.Id] = true
+            showToast(entry.Name .. " loaded", "Ready to use in your Roblox session.", "success")
+            task.delay(1.6, function()
+                loaded[entry.Id] = nil
+                if renderContent then
+                    renderContent()
+                end
+            end)
+        else]==],
+[==[        if ok then
+            loaded[entry.Id] = true
+            showToast(entry.Name .. " loaded", "Ready to use in your Roblox session.", "success")
+            task.delay(0.1, function()
+                if hubTerminated then
+                    return
+                end
+                shown = false
+                pcall(function()
+                    tween(blur, 0.15, { Size = 0 })
+                    tween(main, 0.15, { GroupTransparency = 1 })
+                end)
+                task.delay(0.16, function()
+                    if not hubTerminated and gui and gui.Parent then
+                        gui.Enabled = false
+                    end
+                    if not hubTerminated and blur and blur.Parent then
+                        blur.Enabled = false
+                    end
+                end)
+            end)
+            task.delay(1.6, function()
+                loaded[entry.Id] = nil
+                if renderContent then
+                    renderContent()
+                end
+            end)
+        else]==],
+    "close hub after successful script load"
+)
+
 ]=]
 
 coreSource = coreSource:sub(1, insertAt - 1) .. liveFixes .. coreSource:sub(insertAt)
