@@ -175,6 +175,58 @@ toggleConnection = UserInputService.InputBegan:Connect(function(input, processed
     end
 end)
 
+-- Successful script loads should fully terminate the Hub, not merely hide it.
+-- The loader marks loaded[entry.Id] = true only after the remote chunk returns successfully.
+local terminateOnLoadConnection
+terminateOnLoadConnection = RunService.Heartbeat:Connect(function()
+    if hubTerminated then
+        if terminateOnLoadConnection then
+            terminateOnLoadConnection:Disconnect()
+            terminateOnLoadConnection = nil
+        end
+        return
+    end
+
+    local scriptLoaded = false
+    for _, state in pairs(loaded) do
+        if state == true then
+            scriptLoaded = true
+            break
+        end
+    end
+
+    if not scriptLoaded then
+        return
+    end
+
+    hubTerminated = true
+    shown = false
+
+    if terminateOnLoadConnection then
+        terminateOnLoadConnection:Disconnect()
+        terminateOnLoadConnection = nil
+    end
+    if toggleConnection then
+        pcall(function()
+            toggleConnection:Disconnect()
+        end)
+        toggleConnection = nil
+    end
+
+    task.defer(function()
+        pcall(function()
+            if gui and gui.Parent then
+                gui:Destroy()
+            end
+        end)
+        pcall(function()
+            if blur and blur.Parent then
+                blur:Destroy()
+            end
+        end)
+    end)
+end)
+
 renderContent()
 styleFilterButtons()
 styleViewButtons()
