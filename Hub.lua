@@ -313,18 +313,19 @@ create("TextLabel", {
 
 local brandLogo = create("ImageLabel", {
     Name = "BrandLogo",
-    Size = UDim2.fromScale(1, 1),
+    Position = UDim2.fromOffset(2, 2),
+    Size = UDim2.new(1, -4, 1, -4),
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
     Image = "",
     ImageTransparency = 1,
-    ScaleType = Enum.ScaleType.Fit,
+    ScaleType = Enum.ScaleType.Crop,
     Parent = brandWrap,
-})
+}, { corner(9) })
 setRemoteImage(
     brandLogo,
-    "https://raw.githubusercontent.com/MrRos3/VantaUI/main/assets/vanta-brand-v2.jpeg?v=vanta-hub-brand-v1",
-    "vanta_brand_v2_hub.jpeg"
+    "https://raw.githubusercontent.com/MrRos3/VantaUI/main/assets/vanta-brand-v2.jpeg?v=vanta-hub-brand-v2",
+    "vanta_brand_v2_hub_v2.jpeg"
 )]==],
     "official Vanta brand artwork"
 )
