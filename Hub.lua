@@ -235,32 +235,25 @@ replacePlain(
 [==[        if ok then
             loaded[entry.Id] = true
             showToast(entry.Name .. " loaded", "Ready to use in your Roblox session.", "success")
-            task.delay(0.1, function()
-                if hubTerminated then
-                    return
-                end
-                shown = false
+
+            -- Successful load means the Hub is finished. Terminate it completely.
+            hubTerminated = true
+            shown = false
+
+            task.defer(function()
                 pcall(function()
-                    tween(blur, 0.15, { Size = 0 })
-                    tween(main, 0.15, { GroupTransparency = 1 })
-                end)
-                task.delay(0.16, function()
-                    if not hubTerminated and gui and gui.Parent then
-                        gui.Enabled = false
-                    end
-                    if not hubTerminated and blur and blur.Parent then
-                        blur.Enabled = false
+                    if gui and gui.Parent then
+                        gui:Destroy()
                     end
                 end)
-            end)
-            task.delay(1.6, function()
-                loaded[entry.Id] = nil
-                if renderContent then
-                    renderContent()
-                end
+                pcall(function()
+                    if blur and blur.Parent then
+                        blur:Destroy()
+                    end
+                end)
             end)
         else]==],
-    "close hub after successful script load"
+    "terminate hub after successful script load"
 )
 
 
