@@ -301,16 +301,6 @@ setRemoteImage(brandLogo, BRAND_LOGO_URL, "salty_brand_logo_v2.png")]==],
     Parent = header,
 }, { corner(10), stroke(Color3.fromRGB(44, 44, 52), 0.12, 1) })
 
-create("TextLabel", {
-    Size = UDim2.fromScale(1, 1),
-    BackgroundTransparency = 1,
-    Text = "V",
-    TextColor3 = Color3.fromHex("#A98AE3"),
-    TextSize = 16,
-    FontFace = font(Enum.FontWeight.Bold),
-    Parent = brandWrap,
-})
-
 local brandLogo = create("ImageLabel", {
     Name = "BrandLogo",
     Position = UDim2.fromOffset(2, 2),
@@ -324,8 +314,8 @@ local brandLogo = create("ImageLabel", {
 }, { corner(9) })
 setRemoteImage(
     brandLogo,
-    "https://raw.githubusercontent.com/MrRos3/VantaUI/main/assets/vanta-brand-v2.jpeg?v=vanta-hub-brand-v2",
-    "vanta_brand_v2_hub_v2.jpeg"
+    BRAND_LOGO_URL,
+    "saltyhub_brand_rounded_v3.png"
 )]==],
     "official Vanta brand artwork"
 )
@@ -435,71 +425,77 @@ local function getVantaNotifier()
 
     if ok and type(result) == "table" and type(result.Notify) == "function" then
         vantaNotifier = result
+        return vantaNotifier
     end
-    return vantaNotifier
+    return nil
 end
 
 local function showToast(title, message, kind)
-    toastToken += 1
-
     local notifier = getVantaNotifier()
     if notifier then
-        local ok = pcall(function()
+        local icon = kind == "error" and "triangle-alert" or "badge-check"
+        pcall(function()
             notifier:Notify({
-                Title = tostring(title or "Notification"),
-                Content = tostring(message or ""),
-                Icon = kind == "error" and "triangle-alert" or "check",
-                Duration = 3.5,
-                CanClose = true,
+                Title = title,
+                Content = message,
+                Icon = icon,
+                Duration = kind == "error" and 4.5 or 3.2,
             })
         end)
-        if ok then
-            return
-        end
+        return
     end
 
     -- Small fallback only if VantaUI itself cannot load in the executor.
+    toastToken += 1
+    local token = toastToken
+    local accent = kind == "error" and THEME.Danger or THEME.Success
     local toast = create("Frame", {
-        Name = "ToastFallback",
+        Name = "Toast",
         AnchorPoint = Vector2.new(1, 1),
-        Position = UDim2.new(1, 320, 1, -76),
-        Size = UDim2.fromOffset(300, 72),
-        BackgroundColor3 = Color3.fromHex("#101010"),
+        Position = UDim2.new(1, 270, 1, -16),
+        Size = UDim2.fromOffset(254, 58),
+        BackgroundColor3 = THEME.Surface2,
         BorderSizePixel = 0,
-        ZIndex = 1000,
-        Parent = gui,
-    }, { corner(18) })
-
+        ZIndex = 80,
+        Parent = main,
+    }, { corner(9), stroke(Color3.fromRGB(45, 45, 52), 0.1, 1) })
+    create("Frame", {
+        Position = UDim2.fromOffset(10, 12),
+        Size = UDim2.fromOffset(5, 34),
+        BackgroundColor3 = accent,
+        BorderSizePixel = 0,
+        ZIndex = 81,
+        Parent = toast,
+    }, { corner(99) })
     create("TextLabel", {
-        Position = UDim2.fromOffset(14, 12),
-        Size = UDim2.new(1, -44, 0, 20),
+        Position = UDim2.fromOffset(25, 9),
+        Size = UDim2.new(1, -34, 0, 18),
         BackgroundTransparency = 1,
-        Text = truncate(title, 42),
+        Text = truncate(title, 40),
         TextColor3 = THEME.Text,
-        TextSize = 14,
+        TextSize = 11,
         FontFace = font(Enum.FontWeight.SemiBold),
         TextXAlignment = Enum.TextXAlignment.Left,
-        ZIndex = 1001,
+        ZIndex = 81,
         Parent = toast,
     })
     create("TextLabel", {
-        Position = UDim2.fromOffset(14, 36),
-        Size = UDim2.new(1, -28, 0, 20),
+        Position = UDim2.fromOffset(25, 28),
+        Size = UDim2.new(1, -34, 0, 18),
         BackgroundTransparency = 1,
-        Text = truncate(message, 68),
+        Text = truncate(message, 54),
         TextColor3 = THEME.Muted,
-        TextSize = 11,
-        FontFace = font(Enum.FontWeight.Medium),
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Regular),
         TextXAlignment = Enum.TextXAlignment.Left,
-        ZIndex = 1001,
+        ZIndex = 81,
         Parent = toast,
     })
-
-    tween(toast, 0.45, { Position = UDim2.new(1, -29, 1, -76) }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-    task.delay(3.5, function()
-        if toast and toast.Parent then
-            tween(toast, 0.45, { Position = UDim2.new(1, 320, 1, -76) }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-            task.delay(0.46, function()
+    tween(toast, 0.24, { Position = UDim2.new(1, -16, 1, -16) })
+    task.delay(2.7, function()
+        if token <= toastToken and toast and toast.Parent then
+            tween(toast, 0.2, { Position = UDim2.new(1, 270, 1, -16) })
+            task.delay(0.22, function()
                 if toast and toast.Parent then
                     toast:Destroy()
                 end
