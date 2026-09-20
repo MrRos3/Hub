@@ -20,7 +20,7 @@ end
 
 local liveFixes = [=[
 
--- Live polish fixes: dropdown layer/rounding, guaranteed Velora Piano visual, and close button.
+-- Live polish fixes: dropdown layer/rounding, Visual Piano image refresh, and hard terminate X button.
 replacePlain(
 [==[local sortPopup = create("Frame", {
     Name = "SortPopup",
@@ -62,35 +62,67 @@ replacePlain(
     "status spacing for close button"
 )
 
-local pianoCardNeedle = [==[    if entry.Id == "velora-piano" then
-        local fallback = addVeloraPianoFallback(imageWrap, UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), image.ZIndex)
-        bindThumbnailFallback(image, fallback)
+-- Persistent termination state lives inside the generated HubCore source.
+replacePlain(
+[==[local player = Players.LocalPlayer]==],
+[==[local player = Players.LocalPlayer
+local hubTerminated = false]==],
+    "hub termination state"
+)
+
+-- Refresh the executor-side thumbnail cache so the newly supplied Visual Piano art is used.
+replacePlain(
+[==[        ImageUrl = BASE_RAW .. "assets/cards/velora-piano.jpg?v=visual-piano-v3",
+        ImageCache = "card_velora-piano_visual_v3.jpg",]==],
+[==[        ImageUrl = BASE_RAW .. "assets/cards/velora-piano.jpg?v=visual-piano-v4",
+        ImageCache = "card_velora-piano_visual_v4.jpg",]==],
+    "Visual Piano image refresh"
+)
+
+-- Once terminated, global input/viewport hooks become inert instead of touching destroyed UI.
+replacePlain(
+[==[local function updateScale()
+    local camera = Workspace.CurrentCamera]==],
+[==[local function updateScale()
+    if hubTerminated then
+        return
     end
-    setRemoteImage(image, entry.ImageUrl, entry.ImageCache)]==]
-
-local pianoCardReplacement = [==[    if entry.Id == "velora-piano" then
-        image.Visible = false
-        addVeloraPianoFallback(imageWrap, UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), image.ZIndex)
-    else
-        setRemoteImage(image, entry.ImageUrl, entry.ImageCache)
-    end]==]
-
-replacePlain(pianoCardNeedle, pianoCardReplacement, "Velora Piano grid visual")
-replacePlain(pianoCardNeedle, pianoCardReplacement, "Velora Piano list visual")
+    local camera = Workspace.CurrentCamera]==],
+    "stop responsive scaling after termination"
+)
 
 replacePlain(
-[==[    if entry.Id == "velora-piano" then
-        local fallback = addVeloraPianoFallback(imageWrap, UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), 56)
-        bindThumbnailFallback(image, fallback)
-    end
-    setRemoteImage(image, entry.ImageUrl, entry.ImageCache)]==],
-[==[    if entry.Id == "velora-piano" then
-        image.Visible = false
-        addVeloraPianoFallback(imageWrap, UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), 56)
-    else
-        setRemoteImage(image, entry.ImageUrl, entry.ImageCache)
-    end]==],
-    "Velora Piano detail visual"
+[==[UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then]==],
+[==[UserInputService.InputBegan:Connect(function(input, processed)
+    if hubTerminated or processed then]==],
+    "stop keyboard shortcuts after termination"
+)
+
+replacePlain(
+[==[    UserInputService.InputChanged:Connect(function(input)]==],
+[==[    UserInputService.InputChanged:Connect(function(input)
+        if hubTerminated then
+            return
+        end]==],
+    "stop drag updates after termination"
+)
+
+replacePlain(
+[==[    UserInputService.InputEnded:Connect(function(input)]==],
+[==[    UserInputService.InputEnded:Connect(function(input)
+        if hubTerminated then
+            return
+        end]==],
+    "stop drag ending after termination"
+)
+
+replacePlain(
+[==[toggleConnection = UserInputService.InputBegan:Connect(function(input, processed)
+    if processed or input.KeyCode ~= TOGGLE_KEY then]==],
+[==[toggleConnection = UserInputService.InputBegan:Connect(function(input, processed)
+    if hubTerminated or processed or input.KeyCode ~= TOGGLE_KEY then]==],
+    "disable toggle key after termination"
 )
 
 replacePlain(
@@ -121,25 +153,46 @@ local closeButton = create("TextButton", {
 }, { corner(7), stroke(Color3.fromRGB(45, 45, 52), 0.12, 1) })
 
 closeButton.MouseEnter:Connect(function()
+    if hubTerminated then
+        return
+    end
     tween(closeButton, 0.12, { BackgroundTransparency = 0, TextColor3 = THEME.Text })
 end)
 closeButton.MouseLeave:Connect(function()
+    if hubTerminated then
+        return
+    end
     tween(closeButton, 0.12, { BackgroundTransparency = 0.2, TextColor3 = Color3.fromHex("#9A9AA4") })
 end)
 closeButton.MouseButton1Click:Connect(function()
+    if hubTerminated then
+        return
+    end
+
+    hubTerminated = true
     shown = false
-    tween(blur, 0.14, { Size = 0 })
-    tween(main, 0.14, { GroupTransparency = 1 })
-    task.delay(0.15, function()
-        if not shown and gui and gui.Parent then
-            gui.Enabled = false
-            blur.Enabled = false
-        end
+
+    pcall(function()
+        tween(blur, 0.10, { Size = 0 })
+        tween(main, 0.10, { GroupTransparency = 1 })
+    end)
+
+    task.delay(0.11, function()
+        pcall(function()
+            if gui and gui.Parent then
+                gui:Destroy()
+            end
+        end)
+        pcall(function()
+            if blur and blur.Parent then
+                blur:Destroy()
+            end
+        end)
     end)
 end)
 
 local function runRemote(entry)]==],
-    "close button"
+    "terminate close button"
 )
 ]=]
 
