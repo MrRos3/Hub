@@ -294,11 +294,12 @@ setRemoteImage(brandLogo, BRAND_LOGO_URL, "salty_brand_logo_v2.png")]==],
     Name = "BrandWrap",
     Position = UDim2.fromOffset(22, 14),
     Size = UDim2.fromOffset(38, 38),
-    BackgroundTransparency = 1,
+    BackgroundColor3 = Color3.fromHex("#121216"),
+    BackgroundTransparency = 0.04,
     BorderSizePixel = 0,
     ClipsDescendants = true,
     Parent = header,
-}, { corner(8) })
+}, { corner(10), stroke(Color3.fromRGB(44, 44, 52), 0.12, 1) })
 
 create("TextLabel", {
     Size = UDim2.fromScale(1, 1),
@@ -330,7 +331,7 @@ setRemoteImage(
 
 replacePlain(
 [==[    Text = "Salty Hub",]==],
-[==[    Text = "VantaUI",]==],
+[==[    Text = "SaltyHub",]==],
     "header title brand"
 )
 
