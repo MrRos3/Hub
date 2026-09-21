@@ -1,0 +1,388 @@
+r > before then
+notify("Cash", ("Collected $%s silently."):format(tostring(after - before)), "banknote")
+else
+notify("Cash", "Silent collector contact sent.", "circle-dollar-sign")
+end
+end
+return true
+end
+local function padTouchPart(pad)
+if not pad or not pad.Parent then
+return nil
+end
+if pad:IsA("BasePart") then
+return pad
+end
+if pad:IsA("Model") and pad.PrimaryPart then
+return pad.PrimaryPart
+end
+local best = nil
+local bestArea = -1
+for _, item in ipairs(pad:GetDescendants()) do
+if item:IsA("BasePart") and item.CanTouch and item.Transparency < 1 then
+local area = item.Size.X * item.Size.Z
+if area > bestArea then
+bestArea = area
+best = item
+end
+end
+end
+return best
+end
+local PAID_ATTRIBUTE_HINTS = {
+"ProductId",
+"ProductID",
+"DeveloperProductId",
+"DeveloperProductID",
+"DevProductId",
+"DevProductID",
+"GamepassId",
+"GamePassId",
+"GamepassID",
+"GamePassID",
+"SkipProductId",
+"RobuxPrice",
+"Robux",
+"Paid",
+"IsPaid",
+"Premium",
+"RequiresGamepass",
+"RequiresGamePass",
+}
+local function truthyPaidValue(value)
+local kind = typeof(value)
+if kind == "boolean" then
+return value == true
+end
+if kind == "number" then
+return value > 0
+end
+if kind == "string" then
+local s = string.lower(value)
+return s ~= ""
+and s ~= "0"
+and s ~= "false"
+and s ~= "none"
+and s ~= "nil"
+and s ~= "free"
+end
+return value ~= nil
+end
+local function hasPaidAttribute(instance)
+for _, name in ipairs(PAID_ATTRIBUTE_HINTS) do
+local value = instance:GetAttribute(name)
+if value ~= nil and truthyPaidValue(value) then
+return true
+end
+end
+for name, value in pairs(instance:GetAttributes()) do
+local lower = string.lower(tostring(name))
+if (
+lower:find("product", 1, true)
+or lower:find("gamepass", 1, true)
+or lower:find("robux", 1, true)
+or lower:find("premium", 1, true)
+) and truthyPaidValue(value) then
+return true
+end
+end
+return false
+end
+local function textLooksPaid(value)
+if type(value) ~= "string" or value == "" then
+return false
+end
+local lower = string.lower(value)
+return lower:find("robux", 1, true) ~= nil
+or lower:find("r$", 1, true) ~= nil
+or lower:find("gamepass", 1, true) ~= nil
+or lower:find("game pass", 1, true) ~= nil
+or lower:find("developer product", 1, true) ~= nil
+or lower:find("premium", 1, true) ~= nil
+or lower:find("buy with robux", 1, true) ~= nil
+end
+local function nameLooksPaid(name)
+local lower = string.lower(tostring(name or ""))
+return lower:find("robux", 1, true) ~= nil
+or lower:find("gamepass", 1, true) ~= nil
+or lower:find("game pass", 1, true) ~= nil
+or lower:find("productid", 1, true) ~= nil
+or lower:find("skipproduct", 1, true) ~= nil
+or lower:find("premium", 1, true) ~= nil
+end
+local function isPaidBuildPad(pad)
+if not pad or not pad.Parent then
+return true
+end
+local objects = {pad}
+for _, descendant in ipairs(pad:GetDescendants()) do
+objects[#objects + 1] = descendant
+end
+for _, object in ipairs(objects) do
+if hasPaidAttribute(object) or nameLooksPaid(object.Name) then
+return true
+end
+if object:IsA("TextLabel")
+or object:IsA("TextButton")
+or object:IsA("TextBox")
+then
+if textLooksPaid(object.Text) then
+return true
+end
+elseif object:IsA("StringValue") then
+if textLooksPaid(object.Value) then
+return true
+end
+elseif object:IsA("IntValue") or object:IsA("NumberValue") then
+if nameLooksPaid(object.Name) and object.Value > 0 then
+return true
+end
+end
+end
+return false
+end
+local function getBuildPads()
+local plot = getActivePlot()
+if not plot then
+return {}
+end
+local pads = {}
+for _, pad in ipairs(CollectionService:GetTagged("TycoonPad")) do
+if pad
+and pad.Parent
+and pad:IsDescendantOf(plot)
+and (pad:IsA("Model") or pad:IsA("BasePart"))
+and not isPaidBuildPad(pad)
+then
+local part = padTouchPart(pad)
+if part and part.Parent then
+pads[#pads + 1] = {
+Pad = pad,
+Part = part,
+}
+end
+end
+end
+table.sort(pads, function(a, b)
+return a.Pad:GetFullName() < b.Pad:GetFullName()
+end)
+return pads
+end
+local getProgress
+local function buildNextPad(showNotice, rapidMode)
+if not rapidMode then
+local progress = getProgress()
+if progress and progress.Completed then
+State.LastBuildResult = "Villa complete"
+if showNotice then
+notify("Auto Build", "Your villa is already complete.", "badge-check")
+end
+return false, "complete"
+end
+end
+local pads = getBuildPads()
+if #pads == 0 then
+State.LastBuildResult = "No active pads"
+if showNotice then
+notify("Auto Build", "No active TycoonPad is available right now.", "scan")
+end
+return false, "no pads"
+end
+State.PadCursor = (State.PadCursor % #pads) + 1
+local entry = pads[State.PadCursor]
+local pad = entry.Pad
+local part = entry.Part
+local name = pad.Name
+local ok, reason
+if rapidMode then
+ok, reason = silentPadTouch(part, 3)
+else
+ok, reason = touchPartNaturally(part, 0.55, true, false)
+end
+if not ok then
+if reason ~= "movement busy" then
+State.LastBuildResult = reason or "touch failed"
+end
+return false, reason
+end
+task.wait(rapidMode and 0.015 or 0.18)
+local purchased =
+not pad.Parent
+or not CollectionService:HasTag(pad, "TycoonPad")
+if purchased then
+State.LastBuildResult = "Purchased " .. tostring(name)
+if showNotice then
+notify("Auto Build", "Purchased pad " .. tostring(name) .. ".", "hammer")
+end
+return true
+end
+State.LastBuildResult = "Touched " .. tostring(name)
+if showNotice then
+notify(
+"Auto Build",
+"Touched " .. tostring(name) .. ". If it stayed, the server may need more cash or another prerequisite.",
+"coins"
+)
+end
+return false, "not purchased"
+end
+local function getDailyStatus()
+local ok, result = safeInvoke("GetDailyRewardStatus")
+if ok and type(result) == "table" then
+return result
+end
+return nil
+end
+local function claimDaily(showNotice)
+local status = getDailyStatus()
+if status and not status.CanClaim then
+if showNotice then
+notify(
+"Daily Reward",
+"Already claimed. Streak day: " .. tostring(status.StreakDay or "?"),
+"calendar-check"
+)
+end
+return false
+end
+local ok, result, reason = safeInvoke("ClaimDailyReward")
+if showNotice then
+if ok and result ~= false then
+notify("Daily Reward", "Claim request sent.", "gift")
+elseif ok then
+notify("Daily Reward", reason or "Reward is not ready.", "clock")
+else
+notify("Daily Reward", reason or "Server call failed.", "circle-x")
+end
+end
+return ok and result ~= false
+end
+function getProgress()
+local ok, result = safeInvoke("GetTycoonProgress")
+if ok and type(result) == "table" then
+return result
+end
+return nil
+end
+local function teleportToTycoon()
+local character = LocalPlayer.Character
+local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+if humanoid and humanoid.Sit then
+humanoid.Sit = false
+task.wait(0.15)
+end
+local ok, err = safeFire("TeleportToTycoon")
+if not ok then
+notify("Teleport", err or "Teleport remote unavailable.", "circle-x")
+end
+end
+local function teleportToCollector()
+local character = LocalPlayer.Character
+local root = character and character:FindFirstChild("HumanoidRootPart")
+local pad = getCollectorPart()
+if not root then
+notify("Collector", "Character is not ready.", "circle-x")
+return
+end
+if not pad then
+notify("Collector", "No active collecting pad found.", "map-pin-off")
+return
+end
+root.CFrame = pad.CFrame + Vector3.new(0, 3.5, 0)
+end
+local INTERACT_TAGS = {
+"PaintingTrigger",
+"Vault",
+"HangarGateControl",
+"ElevatorCallButton",
+"RotatingShelf",
+"GarageDoor",
+"MurphyBed",
+"FoldableStairs",
+"StairsSwitch",
+}
+local function getAdorneePosition(instance)
+if not instance or not instance.Parent then
+return nil
+end
+if instance:IsA("BasePart") then
+return instance.Position
+end
+if instance:IsA("Model") then
+local part = instance:FindFirstChild("UIPart")
+or instance.PrimaryPart
+or instance:FindFirstChildWhichIsA("BasePart")
+return part and part.Position or nil
+end
+local model = instance:FindFirstAncestorWhichIsA("Model")
+if model then
+local part = model:FindFirstChild("UIPart")
+or model.PrimaryPart
+or model:FindFirstChildWhichIsA("BasePart")
+return part and part.Position or nil
+end
+return nil
+end
+local function interactNearby()
+local character = LocalPlayer.Character
+local root = character and character:FindFirstChild("HumanoidRootPart")
+local interact = InteractRemotes and InteractRemotes:FindFirstChild("Interact")
+if not root or not interact or not interact:IsA("RemoteEvent") then
+notify("Interact", "Interact remote or character is unavailable.", "circle-x")
+return
+end
+local candidates = {}
+for _, tag in ipairs(INTERACT_TAGS) do
+for _, instance in ipairs(CollectionService:GetTagged(tag)) do
+if instance and instance.Parent then
+local pos = getAdorneePosition(instance)
+if pos then
+local distance = (root.Position - pos).Magnitude
+if distance <= State.InteractRadius then
+table.insert(candidates, {
+Instance = instance,
+Distance = distance,
+})
+end
+end
+end
+end
+end
+table.sort(candidates, function(a, b)
+return a.Distance < b.Distance
+end)
+local fired = 0
+local seen = {}
+for _, item in ipairs(candidates) do
+if not seen[item.Instance] then
+seen[item.Instance] = true
+pcall(function()
+interact:FireServer(item.Instance)
+end)
+fired += 1
+if fired >= 4 then
+break
+end
+task.wait(0.08)
+end
+end
+notify(
+"Interact",
+fired > 0 and ("Interacted with " .. fired .. " nearby object(s).")
+or "Nothing interactable is close enough.",
+fired > 0 and "hand" or "scan"
+)
+end
+local function nearestTagged(tag, maxDistance)
+local character = LocalPlayer.Character
+local root = character and character:FindFirstChild("HumanoidRootPart")
+if not root then
+return nil, math.huge
+end
+local nearest = nil
+local nearestDistance = math.huge
+for _, instance in ipairs(CollectionService:GetTagged(tag)) do
+if instance and instance.Parent then
+local pos = getAdorneePosition(instance)
+if pos then
+loca
