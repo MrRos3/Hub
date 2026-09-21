@@ -1,0 +1,381 @@
+con = "gift",
+Callback = function()
+claimDaily(true)
+task.delay(0.5, refreshStatus)
+end,
+})
+Home:Button({
+Title = "Teleport to villa",
+Desc = "Uses the game's TeleportToTycoon remote.",
+Icon = "map-pin",
+Callback = teleportToTycoon,
+})
+Home:Button({
+Title = "Teleport to collector",
+Desc = "Moves you to your active villa's CollectingPad.",
+Icon = "circle-dollar-sign",
+Callback = teleportToCollector,
+})
+Farm:Paragraph({
+Title = "Server-backed automation",
+Desc = "Cash + building now use the real map pads. No SmartCollect gamepass and no AutoBuildToggle gamepass.",
+Icon = "shield-check",
+})
+Farm:Slider({
+Title = "Cash interval",
+Desc = "Seconds between silent collector contacts.",
+Value = {
+Min = 2,
+Max = 15,
+Default = State.CashInterval,
+},
+Step = 0.5,
+Callback = function(value)
+State.CashInterval = value
+end,
+})
+Farm:Toggle({
+Title = "Silent auto collect cash",
+Desc = "Collects through a hidden one-tick pad contact without a visible teleport. No SmartCollect gamepass.",
+Value = false,
+Callback = function(value)
+State.AutoCash = value
+if value then
+task.spawn(function()
+collectCash(false)
+end)
+end
+end,
+})
+Farm:Toggle({
+Title = "Auto daily reward",
+Desc = "Checks reward status periodically and claims only when CanClaim is true.",
+Value = false,
+Callback = function(value)
+State.AutoDaily = value
+if value then
+task.spawn(function()
+claimDaily(false)
+refreshStatus(false)
+end)
+end
+end,
+})
+local AutoBuildControl
+AutoBuildControl = Farm:Toggle({
+Title = "Silent Auto Build • FREE",
+Desc = "Rapid silent cash-pad building. Robux/gamepass/product pads are skipped automatically.",
+Value = false,
+Callback = function(value)
+State.AutoBuild = value
+notify(
+"Auto Build",
+value and "SILENT RAPID pad runner started." or "FREE pad runner stopped.",
+value and "hammer" or "square"
+)
+if value then
+task.spawn(function()
+buildNextPad(false, true)
+end)
+end
+end,
+})
+Farm:Button({
+Title = "Build next pad now",
+Desc = "Touches one active TycoonPad once, then returns to your old position.",
+Icon = "hammer",
+Callback = function()
+task.spawn(function()
+buildNextPad(true, false)
+task.delay(0.35, refreshStatus)
+end)
+end,
+})
+Farm:Slider({
+Title = "Interact radius",
+Desc = "Radius used by the one-shot nearby interaction helper.",
+Value = {
+Min = 4,
+Max = 15,
+Default = State.InteractRadius,
+},
+Step = 1,
+Callback = function(value)
+State.InteractRadius = value
+end,
+})
+Farm:Button({
+Title = "Interact nearby once",
+Desc = "Uses the same Interact(instance) signature as the game's proximity system. Caps each press at 4 objects.",
+Icon = "hand",
+Callback = interactNearby,
+})
+Farm:Button({
+Title = "Claim group reward",
+Desc = "Calls the existing ClaimFreeCar reward endpoint. The server still requires eligibility/group membership.",
+Icon = "gift",
+Callback = function()
+local okClaimed, alreadyClaimed = safeInvoke("HasClaimedFreeCar")
+if okClaimed and alreadyClaimed then
+notify("Group Reward", "Already claimed on this account.", "badge-check")
+return
+end
+local ok, result, reason = safeInvoke("ClaimFreeCar")
+if ok and result ~= false then
+notify("Group Reward", "Server accepted the reward request.", "gift")
+else
+notify("Group Reward", reason or "Not eligible yet.", "lock")
+end
+end,
+})
+Vehicle:Paragraph({
+Title = "A-Chassis controls",
+Desc = "The dump identifies AChassisCar models plus DriftMode, FE_Lights, HornRequest, and the tune fields used below.",
+Icon = "gauge",
+})
+Vehicle:Toggle({
+Title = "Drift mode",
+Desc = "Sets the current A-Chassis car's DriftMode attribute.",
+Value = false,
+Callback = setDrift,
+})
+Vehicle:Toggle({
+Title = "Headlights",
+Desc = "Uses FE_Lights('updateLights', 'beam', enabled).",
+Value = false,
+Callback = function(value)
+State.Headlights = value
+fireLights("updateLights", "beam", value)
+end,
+})
+Vehicle:Button({
+Title = "Left indicator",
+Desc = "Toggles the current car's left indicator.",
+Icon = "arrow-left",
+Callback = function()
+fireLights("blinkers", "Left")
+end,
+})
+Vehicle:Button({
+Title = "Right indicator",
+Desc = "Toggles the current car's right indicator.",
+Icon = "arrow-right",
+Callback = function()
+fireLights("blinkers", "Right")
+end,
+})
+Vehicle:Button({
+Title = "Hazards",
+Desc = "Toggles the current car's hazard lights.",
+Icon = "triangle-alert",
+Callback = function()
+fireLights("blinkers", "Hazards")
+end,
+})
+Vehicle:Button({
+Title = "Horn burst",
+Desc = "Uses HornRequest true/false for a short horn press.",
+Icon = "volume-2",
+Callback = hornBurst,
+})
+local SpeedBoostControl
+SpeedBoostControl = Vehicle:Toggle({
+Title = "Game Speed Boost",
+Desc = "Uses the game's own SpeedBoost entitlement check and SpeedBoostEnabled player setting. Never opens a purchase prompt.",
+Value = false,
+Callback = function(value)
+task.spawn(function()
+if value and not ownsSpeedBoost() then
+State.SpeedBoost = false
+SpeedBoostControl:Set(false, false)
+notify("Speed Boost", "This account does not own Speed Boost.", "lock")
+return
+end
+local ok, err = safeFire("SetPlayerSetting", "SpeedBoostEnabled", value)
+if not ok then
+State.SpeedBoost = false
+SpeedBoostControl:Set(false, false)
+notify("Speed Boost", err or "Could not update the game setting.", "circle-x")
+return
+end
+State.SpeedBoost = value
+if type(_G.PlayerSettings) == "table" then
+_G.PlayerSettings.SpeedBoostEnabled = value
+end
+notify(
+"Speed Boost",
+value and "Enabled through the game's normal setting." or "Disabled.",
+value and "gauge" or "circle"
+)
+end)
+end,
+})
+Vehicle:Slider({
+Title = "Torque multiplier",
+Desc = "Scales PeakTorque, IdleTorque, and RedlineTorque in the current A-Chassis tune.",
+Value = {
+Min = 1,
+Max = 4,
+Default = 1,
+},
+Step = 0.1,
+Callback = function(value)
+State.Tune.TorqueMult = value
+applyTune(false)
+end,
+})
+Vehicle:Slider({
+Title = "Turbo multiplier",
+Desc = "Scales the dumped T_Boost value.",
+Value = {
+Min = 1,
+Max = 3,
+Default = 1,
+},
+Step = 0.1,
+Callback = function(value)
+State.Tune.TurboMult = value
+applyTune(false)
+end,
+})
+Vehicle:Slider({
+Title = "Throttle response",
+Desc = "Scales the dumped ThrotAccel value.",
+Value = {
+Min = 1,
+Max = 3,
+Default = 1,
+},
+Step = 0.1,
+Callback = function(value)
+State.Tune.ThrottleMult = value
+applyTune(false)
+end,
+})
+Vehicle:Slider({
+Title = "Speed limit",
+Desc = "Sets A-Chassis SpeedLimit. 0 is the game's unlimited value.",
+Value = {
+Min = 0,
+Max = 400,
+Default = 0,
+},
+Step = 5,
+Callback = function(value)
+State.Tune.SpeedLimit = value
+applyTune(false)
+end,
+})
+Vehicle:Button({
+Title = "Reapply current tune",
+Desc = "Useful after changing cars or respawning a vehicle.",
+Icon = "refresh-cw",
+Callback = function()
+applyTune(true)
+end,
+})
+Vehicle:Button({
+Title = "Restore original tune",
+Desc = "Restores the values captured before Salty modified this current vehicle.",
+Icon = "rotate-ccw",
+Callback = resetTune,
+})
+Doors:Paragraph({
+Title = "Door controls",
+Desc = "Uses DoorInteract(instance), DoorLock(instance), and DoorKnock(instance), matching the game's own DoorClient. Server permissions still apply.",
+Icon = "door-open",
+})
+Doors:Button({
+Title = "Open / close nearest door",
+Desc = "Works only within the game's 8-stud interaction distance and will not force a locked door.",
+Icon = "door-open",
+Callback = interactNearestDoor,
+})
+Doors:Button({
+Title = "Lock / unlock nearest door",
+Desc = "Uses the game's DoorLock remote on the nearest lockable door within 8 studs.",
+Icon = "lock-keyhole",
+Callback = toggleNearestDoorLock,
+})
+Doors:Button({
+Title = "Knock nearest door",
+Desc = "Uses DoorKnock and mirrors the game's 2-second client knock cooldown.",
+Icon = "hand",
+Callback = knockNearestDoor,
+})
+Doors:Toggle({
+Title = "Game Auto Doors",
+Desc = "Changes the game's normal AutoDoors player setting.",
+Value = false,
+Callback = function(value)
+State.AutoDoors = value
+if type(_G.PlayerSettings) == "table" then
+_G.PlayerSettings.AutoDoors = value
+end
+local ok, err = safeFire("SetPlayerSetting", "AutoDoors", value)
+if not ok then
+notify("Auto Doors", err or "Could not update the game setting.", "circle-x")
+end
+end,
+})
+Utility:Button({
+Title = "Get vehicle count",
+Desc = "Reads GetOwnedVehicles and reports the server's current list size.",
+Icon = "car",
+Callback = function()
+local ok, result, reason = safeInvoke("GetOwnedVehicles")
+if ok and type(result) == "table" then
+notify("Vehicles", "Owned vehicles: " .. tostring(countTable(result)), "car")
+else
+notify("Vehicles", reason or "Could not read owned vehicles.", "circle-x")
+end
+end,
+})
+Utility:Button({
+Title = "Read villa progress",
+Desc = "Shows Owned / Total, completion state, and rebuild count.",
+Icon = "chart-no-axes-column-increasing",
+Callback = function()
+local progress = getProgress()
+if not progress then
+notify("Villa Progress", "No progression response.", "circle-x")
+return
+end
+notify(
+"Villa Progress",
+("%s / %s | %s | rebuilds %s")
+:format(
+tostring(progress.Owned or 0),
+tostring(progress.Total or 0),
+progress.Completed and "complete" or "in progress",
+tostring(progress.RebuildCount or 0)
+),
+"chart-no-axes-column-increasing"
+)
+end,
+})
+Utility:Button({
+Title = "Farm status",
+Desc = "Shows current free-farm state and active TycoonPad count.",
+Icon = "activity",
+Callback = function()
+notify(
+"Farm Status",
+("collector=%s • build=%s • pads=%d • last=%s")
+:format(
+tostring(State.AutoCash),
+tostring(State.AutoBuild),
+#getBuildPads(),
+tostring(State.LastBuildResult)
+),
+"activity"
+)
+end,
+})
+Utility:Button({
+Title = "Disable all automations",
+Desc = "Stops auto cash and auto daily loops without closing the interface.",
+Icon = "circle-stop",
+Callback = function()
+State.AutoCash = false
+State.AutoDaily
