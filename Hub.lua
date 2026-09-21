@@ -19,13 +19,12 @@ if not insertAt then
 end
 
 local villaImageFix = [=[
--- Villa Control image refresh: reconstruct the JPEG from base64 before getcustomasset.
--- This avoids executor-specific raw JPEG download/cache failures.
+-- Villa Control image refresh: use the exact same JPEG encoding/cache path as Stop the Timer.
 replacePlain(
 [==[        ImageUrl = BASE_RAW .. "assets/cards/villa-control-v1.jpg?v=villa-control-v1",
         ImageCache = "card_villa_control_v1.jpg",]==],
-[==[        ImageUrl = BASE_RAW .. "assets/cards/villa-control-v3.b64.txt?v=villa-control-v3",
-        ImageCache = "card_villa_control_v3.jpg",]==],
+[==[        ImageUrl = BASE_RAW .. "assets/cards/villa-control-v4.jpg?v=villa-control-v4",
+        ImageCache = "card_villa_control_v4.jpg",]==],
     "Villa Control image refresh"
 )
 
