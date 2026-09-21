@@ -1,1 +1,1 @@
-The Cure card image is being re-encoded to 192x108 baseline JPEG to match working card assets.
+This file should not exist.
