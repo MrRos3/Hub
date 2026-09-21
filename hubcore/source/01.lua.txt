@@ -127,6 +127,49 @@ if canCache then
     ensureFolder(CACHE_ROOT .. "/assets")
 end
 
+local BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+local BASE64_LOOKUP = {}
+for i = 1, #BASE64_ALPHABET do
+    BASE64_LOOKUP[BASE64_ALPHABET:sub(i, i)] = i - 1
+end
+
+local function decodeBase64(data)
+    data = tostring(data or ""):gsub("%s+", "")
+    local out = {}
+    local outCount = 0
+
+    for i = 1, #data, 4 do
+        local c1 = data:sub(i, i)
+        local c2 = data:sub(i + 1, i + 1)
+        local c3 = data:sub(i + 2, i + 2)
+        local c4 = data:sub(i + 3, i + 3)
+        local a = BASE64_LOOKUP[c1]
+        local b = BASE64_LOOKUP[c2]
+        if a == nil or b == nil then
+            break
+        end
+        local c = c3 == "=" and 0 or BASE64_LOOKUP[c3]
+        local d = c4 == "=" and 0 or BASE64_LOOKUP[c4]
+        if c == nil or d == nil then
+            break
+        end
+
+        local n = a * 262144 + b * 4096 + c * 64 + d
+        outCount += 1
+        out[outCount] = string.char(math.floor(n / 65536) % 256)
+        if c3 ~= "=" then
+            outCount += 1
+            out[outCount] = string.char(math.floor(n / 256) % 256)
+        end
+        if c4 ~= "=" then
+            outCount += 1
+            out[outCount] = string.char(n % 256)
+        end
+    end
+
+    return table.concat(out)
+end
+
 local function cacheRemoteAsset(url, path)
     if not canCache or not url or url == "" then
         return ""
@@ -135,8 +178,13 @@ local function cacheRemoteAsset(url, path)
         local ok, bytes = pcall(function()
             return game:HttpGet(url)
         end)
-        if ok and type(bytes) == "string" and #bytes > 100 then
-            pcall(writefile, path, bytes)
+        if ok and type(bytes) == "string" then
+            if string.find(url, ".b64.txt", 1, true) then
+                bytes = decodeBase64(bytes)
+            end
+            if #bytes > 100 then
+                pcall(writefile, path, bytes)
+            end
         end
     end
     if isfile(path) then
