@@ -1,0 +1,391 @@
+l distance = (root.Position - pos).Magnitude
+if distance <= maxDistance and distance < nearestDistance then
+nearest = instance
+nearestDistance = distance
+end
+end
+end
+end
+return nearest, nearestDistance
+end
+local function interactNearestDoor()
+local door = nearestTagged("Door", 8)
+if not door then
+notify("Doors", "No door is within 8 studs.", "door-closed")
+return
+end
+if door:GetAttribute("IsLocked") then
+notify("Doors", "Nearest door is locked.", "lock")
+return
+end
+local ok, err = safeDoorFire("DoorInteract", door)
+if ok then
+notify(
+"Doors",
+door:GetAttribute("IsOpen") and "Close request sent." or "Open request sent.",
+"door-open"
+)
+else
+notify("Doors", err or "Door interaction failed.", "circle-x")
+end
+end
+local function toggleNearestDoorLock()
+local door = nearestTagged("DoorLock", 8)
+if not door then
+notify("Doors", "No lockable door is within 8 studs.", "lock-keyhole")
+return
+end
+local wasLocked = door:GetAttribute("IsLocked") == true
+local ok, err = safeDoorFire("DoorLock", door)
+if ok then
+notify(
+"Doors",
+wasLocked and "Unlock request sent." or "Lock request sent.",
+wasLocked and "lock-open" or "lock"
+)
+else
+notify("Doors", err or "Door lock request failed.", "circle-x")
+end
+end
+local function knockNearestDoor()
+local door = nearestTagged("Knockable", 8)
+if not door then
+notify("Doors", "No knockable door is within 8 studs.", "door-closed")
+return
+end
+local now = os.clock()
+local remaining = 2 - (now - State.LastDoorKnock)
+if remaining > 0 then
+notify("Doors", ("Knock cooldown %.1fs"):format(remaining), "clock")
+return
+end
+local ok, err = safeDoorFire("DoorKnock", door)
+if ok then
+State.LastDoorKnock = now
+notify("Doors", "Knock request sent.", "hand")
+else
+notify("Doors", err or "Door knock failed.", "circle-x")
+end
+end
+local function ownsSpeedBoost()
+local attribute = LocalPlayer:GetAttribute("Gamepass_SpeedBoost")
+if attribute ~= nil then
+return attribute == true
+end
+local ok, owned = safeInvoke("CheckGamepass", "SpeedBoost")
+return ok and owned == true
+end
+local function carFromSeat(seat)
+local parent = seat
+while parent and parent ~= workspace do
+if parent:IsA("Model") and CollectionService:HasTag(parent, "AChassisCar") then
+return parent
+end
+parent = parent.Parent
+end
+return nil
+end
+local function currentVehicle()
+local character = LocalPlayer.Character
+local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+local seat = humanoid and humanoid.SeatPart
+if not seat then
+return nil, nil
+end
+return carFromSeat(seat), seat
+end
+local function currentTune()
+local car = currentVehicle()
+if not car then
+return nil, nil
+end
+local tuneModule = car:FindFirstChild("A-Chassis Tune", true)
+if not tuneModule or not tuneModule:IsA("ModuleScript") then
+return nil, nil
+end
+local ok, tune = pcall(require, tuneModule)
+if not ok or type(tune) ~= "table" then
+return nil, nil
+end
+return tune, tuneModule
+end
+local TUNE_FIELDS = {
+"PeakTorque",
+"IdleTorque",
+"RedlineTorque",
+"T_Boost",
+"ThrotAccel",
+"SpeedLimit",
+}
+local function captureTune(tune, module)
+if State.OriginalTunes[module] then
+return State.OriginalTunes[module]
+end
+local original = {}
+for _, key in ipairs(TUNE_FIELDS) do
+original[key] = tune[key]
+end
+State.OriginalTunes[module] = original
+return original
+end
+local function applyTune(showNotice)
+local tune, module = currentTune()
+if not tune or not module then
+if showNotice then
+notify("Vehicle Tune", "Sit in an A-Chassis vehicle first.", "car")
+end
+return false
+end
+local original = captureTune(tune, module)
+if type(original.PeakTorque) == "number" then
+tune.PeakTorque = original.PeakTorque * State.Tune.TorqueMult
+end
+if type(original.IdleTorque) == "number" then
+tune.IdleTorque = original.IdleTorque * State.Tune.TorqueMult
+end
+if type(original.RedlineTorque) == "number" then
+tune.RedlineTorque = original.RedlineTorque * State.Tune.TorqueMult
+end
+if type(original.T_Boost) == "number" then
+tune.T_Boost = original.T_Boost * State.Tune.TurboMult
+end
+if type(original.ThrotAccel) == "number" then
+tune.ThrotAccel = original.ThrotAccel * State.Tune.ThrottleMult
+end
+if type(original.SpeedLimit) == "number" then
+tune.SpeedLimit = State.Tune.SpeedLimit
+end
+if showNotice then
+notify(
+"Vehicle Tune",
+("Applied: torque x%.2f | turbo x%.2f | throttle x%.2f | limit %s")
+:format(
+State.Tune.TorqueMult,
+State.Tune.TurboMult,
+State.Tune.ThrottleMult,
+State.Tune.SpeedLimit == 0 and "unlimited" or tostring(State.Tune.SpeedLimit)
+),
+"gauge"
+)
+end
+return true
+end
+local function resetTune()
+local tune, module = currentTune()
+if not tune or not module then
+notify("Vehicle Tune", "Sit in the tuned vehicle first.", "car")
+return
+end
+local original = State.OriginalTunes[module]
+if not original then
+notify("Vehicle Tune", "No saved original tune for this vehicle.", "rotate-ccw")
+return
+end
+for key, value in pairs(original) do
+tune[key] = value
+end
+State.OriginalTunes[module] = nil
+State.Tune.TorqueMult = 1
+State.Tune.TurboMult = 1
+State.Tune.ThrottleMult = 1
+State.Tune.SpeedLimit = 0
+notify("Vehicle Tune", "Original A-Chassis tune restored.", "rotate-ccw")
+end
+local function setDrift(enabled)
+State.Drift = enabled
+local car = currentVehicle()
+if not car then
+if enabled then
+notify("Drift", "Sit in an A-Chassis vehicle first.", "car")
+end
+return
+end
+car:SetAttribute("DriftMode", enabled)
+end
+local function lightRemote()
+local car, seat = currentVehicle()
+if not car or not seat then
+return nil
+end
+local fe = seat:FindFirstChild("FE_Lights")
+if fe and fe:IsA("RemoteEvent") then
+return fe
+end
+local driveSeat = car:FindFirstChild("DriveSeat", true)
+fe = driveSeat and driveSeat:FindFirstChild("FE_Lights")
+if fe and fe:IsA("RemoteEvent") then
+return fe
+end
+return nil
+end
+local function fireLights(...)
+local fe = lightRemote()
+if not fe then
+notify("Vehicle Lights", "FE_Lights remote was not found on your car.", "lightbulb-off")
+return false
+end
+local args = table.pack(...)
+local ok = pcall(function()
+fe:FireServer(table.unpack(args, 1, args.n))
+end)
+return ok
+end
+local function hornBurst()
+local car = currentVehicle()
+if not car then
+notify("Horn", "Sit in an A-Chassis vehicle first.", "car")
+return
+end
+local horn = remote("HornRequest")
+if not horn or not horn:IsA("RemoteEvent") then
+notify("Horn", "HornRequest remote is unavailable.", "circle-x")
+return
+end
+horn:FireServer(true)
+task.delay(0.45, function()
+if State.Running and horn.Parent then
+pcall(function()
+horn:FireServer(false)
+end)
+end
+end)
+end
+local Window = VantaUI:CreateWindow({
+Title = "Salty • Villa Control",
+Icon = VantaUI.Brand.Image,
+Theme = "Salty Special",
+HideSearchBar = false,
+StartupTab = "Home",
+Branding = {
+Name = "SALTY",
+Image = VantaUI.Brand.Image,
+Folder = "SaltyVilla",
+IconSize = 24,
+IconRadius = 7,
+Intro = false,
+},
+OpenButton = {
+Title = "Open Salty",
+Icon = VantaUI.Brand.Image,
+Enabled = true,
+Draggable = true,
+OnlyMobile = false,
+OnlyIcon = true,
+CornerRadius = UDim.new(0, 11),
+StrokeThickness = 2,
+ImageZoom = 1,
+Color = ColorSequence.new({
+ColorSequenceKeypoint.new(0, Color3.fromHex("#000000")),
+ColorSequenceKeypoint.new(1, Color3.fromHex("#000000")),
+}),
+},
+Sounds = {
+Enabled = true,
+Preset = "Soft",
+Volume = 0.35,
+Pitch = 1,
+},
+})
+State.Window = Window
+Window:Tag({
+Title = "v" .. VERSION,
+Icon = "sparkles",
+Color = Color3.fromHex("#151116"),
+Border = true,
+})
+local Home = Window:Tab({
+Title = "Home",
+Icon = "house",
+})
+local Farm = Window:Tab({
+Title = "Farm",
+Icon = "banknote",
+})
+local Vehicle = Window:Tab({
+Title = "Vehicle",
+Icon = "car-front",
+})
+local Doors = Window:Tab({
+Title = "Doors",
+Icon = "door-open",
+})
+local Utility = Window:Tab({
+Title = "Utility",
+Icon = "wrench",
+})
+local Status = Home:Paragraph({
+Title = "Live game status",
+Desc = "Reading server-backed progression...",
+Icon = "activity",
+})
+local function refreshStatus(showNotice)
+task.spawn(function()
+local progress = getProgress()
+local daily = getDailyStatus()
+local vehicleCount = "?"
+do
+local ok, owned = safeInvoke("GetOwnedVehicles")
+if ok and type(owned) == "table" then
+vehicleCount = tostring(countTable(owned))
+end
+end
+local claimed = LocalPlayer:FindFirstChild("ClaimedTycoon") ~= nil
+local lines = {
+"Villa: " .. (claimed and "claimed" or "not claimed"),
+"Vehicles: " .. vehicleCount,
+}
+if progress then
+table.insert(
+lines,
+("Progress: %s / %s%s")
+:format(
+tostring(progress.Owned or 0),
+tostring(progress.Total or 0),
+progress.Completed and " • COMPLETE" or ""
+)
+)
+if progress.VillaName and progress.VillaName ~= "" then
+table.insert(lines, "Villa name: " .. tostring(progress.VillaName))
+end
+if progress.RebuildCount ~= nil then
+table.insert(lines, "Rebuilds: " .. tostring(progress.RebuildCount))
+end
+else
+table.insert(lines, "Progress: unavailable")
+end
+if daily then
+table.insert(
+lines,
+"Daily: " .. (daily.CanClaim and "READY" or "claimed")
+.. " • streak " .. tostring(daily.StreakDay or "?")
+)
+else
+table.insert(lines, "Daily: unavailable")
+end
+Status:SetDesc(table.concat(lines, "\n"))
+if showNotice then
+notify("Status", "Game status refreshed.", "refresh-cw")
+end
+end)
+end
+Home:Button({
+Title = "Refresh status",
+Desc = "Reads progression, daily reward state, and owned vehicle count.",
+Icon = "refresh-cw",
+Callback = function()
+refreshStatus(true)
+end,
+})
+Home:Button({
+Title = "Silent collect now",
+Desc = "Silent one-tick collector contact. Camera stays at your current spot.",
+Icon = "banknote",
+Callback = function()
+collectCash(true)
+task.delay(0.4, refreshStatus)
+end,
+})
+Home:Button({
+Title = "Claim daily reward",
+Desc = "Checks CanClaim first, then calls ClaimDailyReward.",
+I
