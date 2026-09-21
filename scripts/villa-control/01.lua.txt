@@ -1,0 +1,335 @@
+local TARGET_PLACE_ID = 129784419746425
+local VERSION = "1.8.0"
+if game.PlaceId ~= TARGET_PLACE_ID then
+warn(("[Salty] This build targets PlaceId %s, current PlaceId is %s.")
+:format(TARGET_PLACE_ID, game.PlaceId))
+return
+end
+local ENV = getgenv and getgenv() or _G
+if ENV.__SALTY_VILLA_VANTA and ENV.__SALTY_VILLA_VANTA.Stop then
+pcall(function()
+ENV.__SALTY_VILLA_VANTA:Stop()
+end)
+end
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CollectionService = game:GetService("CollectionService")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Remotes = ReplicatedStorage:WaitForChild("Remotes", 15)
+local InteractRemotes = ReplicatedStorage:FindFirstChild("InteractRemotes")
+local DoorRemotes = ReplicatedStorage:FindFirstChild("DoorRemotes")
+if not LocalPlayer or not Remotes then
+error("[Salty] Required game objects did not load.", 0)
+end
+local cacheBuster = tostring(os.time()) .. "-" .. tostring(math.random(100000, 999999))
+local VantaUI = loadstring(game:HttpGet(
+"https://raw.githubusercontent.com/MrRos3/VantaUI/main/main.lua?v=" .. cacheBuster
+))()
+local State = {
+Running = true,
+AutoCash = false,
+AutoDaily = false,
+CashInterval = 3,
+InteractRadius = 10,
+AutoBuild = false,
+AutoDoors = false,
+SpeedBoost = false,
+MoveBusy = false,
+PadCursor = 0,
+LastBuildResult = "Idle",
+Drift = false,
+Headlights = false,
+LastDoorKnock = 0,
+Tune = {
+TorqueMult = 1,
+TurboMult = 1,
+ThrottleMult = 1,
+SpeedLimit = 0,
+},
+OriginalTunes = setmetatable({}, { __mode = "k" }),
+Connections = {},
+Window = nil,
+}
+ENV.__SALTY_VILLA_VANTA = State
+local function connect(signal, callback)
+local connection = signal:Connect(callback)
+table.insert(State.Connections, connection)
+return connection
+end
+local function notify(title, content, icon)
+pcall(function()
+VantaUI:Notify({
+Title = title or "Salty",
+Content = tostring(content or ""),
+Icon = icon or "sparkles",
+})
+end)
+end
+local function remote(name)
+return Remotes:FindFirstChild(name)
+end
+local function safeInvoke(name, ...)
+local object = remote(name)
+if not object or not object:IsA("RemoteFunction") then
+return false, nil, "Missing RemoteFunction: " .. tostring(name)
+end
+local args = table.pack(...)
+local packed = table.pack(pcall(function()
+return object:InvokeServer(table.unpack(args, 1, args.n))
+end))
+if not packed[1] then
+return false, nil, tostring(packed[2])
+end
+return true, packed[2], packed[3], packed[4]
+end
+local function safeFire(name, ...)
+local object = remote(name)
+if not object or not object:IsA("RemoteEvent") then
+return false, "Missing RemoteEvent: " .. tostring(name)
+end
+local args = table.pack(...)
+local ok, err = pcall(function()
+object:FireServer(table.unpack(args, 1, args.n))
+end)
+return ok, err
+end
+local function safeDoorFire(name, ...)
+local object = DoorRemotes and DoorRemotes:FindFirstChild(name)
+if not object or not object:IsA("RemoteEvent") then
+return false, "Missing Door RemoteEvent: " .. tostring(name)
+end
+local args = table.pack(...)
+local ok, err = pcall(function()
+object:FireServer(table.unpack(args, 1, args.n))
+end)
+return ok, err
+end
+local function countTable(value)
+if type(value) ~= "table" then
+return 0
+end
+local count = #value
+if count > 0 then
+return count
+end
+for _ in pairs(value) do
+count += 1
+end
+return count
+end
+local function getActivePlot()
+local modules = ReplicatedStorage:FindFirstChild("Modules")
+local activePlotModule = modules and modules:FindFirstChild("ActivePlot")
+if activePlotModule and activePlotModule:IsA("ModuleScript") then
+local ok, module = pcall(require, activePlotModule)
+if ok and type(module) == "table" and type(module.Get) == "function" then
+local got, plot = pcall(module.Get)
+if got and plot then
+return plot
+end
+end
+end
+local claimed = LocalPlayer:FindFirstChild("ClaimedTycoon")
+local tycoons = workspace:FindFirstChild("Tycoons")
+if claimed and tycoons then
+return tycoons:FindFirstChild(tostring(claimed.Value))
+end
+return nil
+end
+local function getCollectorPart()
+local plot = getActivePlot()
+if not plot then
+return nil
+end
+local starterBuild = plot:FindFirstChild("StarterBuild")
+local collectingPad = starterBuild and starterBuild:FindFirstChild("CollectingPad")
+if not collectingPad then
+return nil
+end
+return collectingPad.PrimaryPart or collectingPad:FindFirstChildWhichIsA("BasePart")
+end
+local function getCashValue()
+local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
+local cash = leaderstats and leaderstats:FindFirstChild("Cash")
+return cash and tonumber(cash.Value) or nil
+end
+local function rig()
+local character = LocalPlayer.Character
+if not character then
+return nil, nil, nil
+end
+return character,
+character:FindFirstChildOfClass("Humanoid"),
+character:FindFirstChild("HumanoidRootPart")
+end
+local function stopMomentum(root)
+if not root then
+return
+end
+pcall(function()
+root.AssemblyLinearVelocity = Vector3.zero
+root.AssemblyAngularVelocity = Vector3.zero
+end)
+end
+local function worldHalfHeight(part)
+local cf = part.CFrame
+local size = part.Size
+return math.abs(cf.RightVector.Y) * size.X * 0.5
++ math.abs(cf.UpVector.Y) * size.Y * 0.5
++ math.abs(cf.LookVector.Y) * size.Z * 0.5
+end
+local function touchPartNaturally(part, holdTime, restoreAfter, fastMode)
+if State.MoveBusy then
+return false, "movement busy"
+end
+if not part or not part:IsA("BasePart") or not part.Parent then
+return false, "touch part unavailable"
+end
+local character, humanoid, root = rig()
+if not character or not humanoid or not root then
+return false, "character not ready"
+end
+State.MoveBusy = true
+local ok, reason = pcall(function()
+local origin = character:GetPivot()
+humanoid.Sit = false
+stopMomentum(root)
+local _, yaw, _ = origin:ToOrientation()
+local halfHeight = worldHalfHeight(part)
+local topY = part.Position.Y + halfHeight
+local x = part.Position.X
+local z = part.Position.Z
+local aboveOffset = fastMode and 2.20 or 3.25
+local contactOffset = fastMode and 1.35 or 1.55
+local preContactWait = fastMode and 0.015 or 0.10
+local above = CFrame.new(x, topY + aboveOffset, z) * CFrame.Angles(0, yaw, 0)
+local contact = CFrame.new(x, topY + contactOffset, z) * CFrame.Angles(0, yaw, 0)
+character:PivotTo(above)
+stopMomentum(root)
+if preContactWait > 0 then
+task.wait(preContactWait)
+end
+root.CFrame = contact
+root.AssemblyLinearVelocity = Vector3.new(0, fastMode and -18 or -10, 0)
+task.wait(holdTime or (fastMode and 0.12 or 0.55))
+if restoreAfter and character.Parent then
+stopMomentum(root)
+character:PivotTo(origin)
+stopMomentum(root)
+end
+end)
+State.MoveBusy = false
+if not ok then
+return false, tostring(reason)
+end
+return true
+end
+local function silentPadTouch(part, heartbeatFrames)
+if State.MoveBusy then
+return false, "movement busy"
+end
+if not part or not part:IsA("BasePart") or not part.Parent then
+return false, "touch target unavailable"
+end
+local character, humanoid, root = rig()
+if not character or not humanoid or not root then
+return false, "character not ready"
+end
+State.MoveBusy = true
+local camera = workspace.CurrentCamera
+local origin = character:GetPivot()
+local oldCameraType = camera and camera.CameraType
+local oldCameraSubject = camera and camera.CameraSubject
+local oldCameraCFrame = camera and camera.CFrame
+local oldAutoRotate = humanoid.AutoRotate
+local transparency = {}
+for _, object in ipairs(character:GetDescendants()) do
+if object:IsA("BasePart") then
+transparency[object] = object.LocalTransparencyModifier
+end
+end
+local frames = math.clamp(math.floor(heartbeatFrames or 1), 1, 6)
+local ok, err = pcall(function()
+humanoid.Sit = false
+humanoid.AutoRotate = false
+if camera then
+camera.CameraType = Enum.CameraType.Scriptable
+camera.CFrame = oldCameraCFrame
+end
+for partObject in pairs(transparency) do
+if partObject and partObject.Parent then
+partObject.LocalTransparencyModifier = 1
+end
+end
+stopMomentum(root)
+local _, yaw, _ = origin:ToOrientation()
+local halfHeight = worldHalfHeight(part)
+local topY = part.Position.Y + halfHeight
+local contact =
+CFrame.new(part.Position.X, topY + 1.20, part.Position.Z)
+* CFrame.Angles(0, yaw, 0)
+character:PivotTo(contact)
+stopMomentum(root)
+root.AssemblyLinearVelocity = Vector3.new(0, -24, 0)
+RunService.Stepped:Wait()
+for _ = 1, frames do
+RunService.Heartbeat:Wait()
+if camera then
+camera.CFrame = oldCameraCFrame
+end
+end
+stopMomentum(root)
+character:PivotTo(origin)
+stopMomentum(root)
+if camera then
+camera.CFrame = oldCameraCFrame
+end
+RunService.RenderStepped:Wait()
+end)
+pcall(function()
+humanoid.AutoRotate = oldAutoRotate
+end)
+for partObject, value in pairs(transparency) do
+if partObject and partObject.Parent then
+pcall(function()
+partObject.LocalTransparencyModifier = value
+end)
+end
+end
+if camera then
+pcall(function()
+camera.CameraType = oldCameraType or Enum.CameraType.Custom
+camera.CameraSubject = oldCameraSubject
+camera.CFrame = oldCameraCFrame
+end)
+end
+State.MoveBusy = false
+if not ok then
+return false, tostring(err)
+end
+return true
+end
+local function silentCollectorTouch(part)
+return silentPadTouch(part, 1)
+end
+local function collectCash(showNotice)
+local pad = getCollectorPart()
+if not pad then
+if showNotice then
+notify("Cash", "Could not find your villa's CollectingPad.", "map-pin-off")
+end
+return false
+end
+local before = getCashValue()
+local ok, reason = silentCollectorTouch(pad)
+if not ok then
+if showNotice and reason ~= "movement busy" then
+notify("Cash", reason or "Silent collector failed.", "circle-x")
+end
+return false
+end
+task.wait(0.12)
+local after = getCashValue()
+if showNotice then
+if before and after and afte
