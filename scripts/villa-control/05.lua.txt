@@ -1,0 +1,127 @@
+ = false
+if State.AutoBuild then
+State.AutoBuild = false
+if AutoBuildControl then
+AutoBuildControl:Set(false, false)
+end
+end
+notify("Salty", "Automations disabled.", "circle-stop")
+end,
+})
+function State:Stop()
+self.Running = false
+self.AutoCash = false
+self.AutoDaily = false
+self.AutoBuild = false
+pcall(function()
+local horn = remote("HornRequest")
+if horn and horn:IsA("RemoteEvent") then
+horn:FireServer(false)
+end
+end)
+for _, connection in ipairs(self.Connections) do
+pcall(function()
+connection:Disconnect()
+end)
+end
+table.clear(self.Connections)
+if self.Window then
+pcall(function()
+if self.Window.Destroy then
+self.Window:Destroy()
+elseif self.Window.Close then
+self.Window:Close()
+end
+end)
+end
+end
+local function bindCharacter(character)
+local humanoid = character:WaitForChild("Humanoid", 10)
+if not humanoid then
+return
+end
+connect(humanoid:GetPropertyChangedSignal("SeatPart"), function()
+if not State.Running then
+return
+end
+task.delay(0.2, function()
+if not State.Running then
+return
+end
+local car = currentVehicle()
+if car then
+car:SetAttribute("DriftMode", State.Drift)
+applyTune(false)
+end
+end)
+end)
+end
+if LocalPlayer.Character then
+bindCharacter(LocalPlayer.Character)
+end
+connect(LocalPlayer.CharacterAdded, function(character)
+task.wait(0.5)
+if State.Running then
+bindCharacter(character)
+end
+end)
+task.spawn(function()
+while State.Running do
+if State.AutoCash then
+collectCash(false)
+end
+task.wait(math.max(2, State.CashInterval))
+end
+end)
+task.spawn(function()
+local rapidAttempts = 0
+while State.Running do
+if State.AutoBuild and not State.MoveBusy then
+rapidAttempts += 1
+if rapidAttempts >= 12 then
+rapidAttempts = 0
+local progress = getProgress()
+if progress and progress.Completed then
+State.AutoBuild = false
+State.LastBuildResult = "Villa complete"
+if AutoBuildControl then
+AutoBuildControl:Set(false, false)
+end
+notify("Auto Build", "Villa complete. Auto Build stopped.", "badge-check")
+refreshStatus(false)
+end
+end
+if State.AutoBuild then
+local _, reason = buildNextPad(false, true)
+if reason == "no pads" then
+task.wait(0.20)
+end
+end
+end
+task.wait(State.AutoBuild and 0.035 or 0.35)
+end
+end)
+task.spawn(function()
+while State.Running do
+if State.AutoDaily then
+local status = getDailyStatus()
+if status and status.CanClaim then
+local claimed = claimDaily(false)
+if claimed then
+notify("Daily Reward", "Auto-claimed your available reward.", "gift")
+refreshStatus(false)
+end
+end
+end
+task.wait(20)
+end
+end)
+task.spawn(function()
+task.wait(0.6)
+refreshStatus(false)
+notify(
+"Salty Villa Control",
+"v1.3 ready • corrected pad contact geometry 🩵",
+"sparkles"
+)
+end)
