@@ -512,6 +512,933 @@ end)
 "compact search and sort feedback"
 )
 
+-- Graphite / emerald presentation pass. No changes to scripts or asset transport.
+
+replacePlain(
+[==[    Stage = Color3.fromHex("#060606"),]==],
+[==[    Stage = Color3.fromHex("#070909"),]==],
+"theme Stage"
+)
+
+replacePlain(
+[==[    Window = Color3.fromHex("#0A0A0C"),]==],
+[==[    Window = Color3.fromHex("#101314"),]==],
+"theme Window"
+)
+
+replacePlain(
+[==[    Surface = Color3.fromHex("#0E0E11"),]==],
+[==[    Surface = Color3.fromHex("#171B1D"),]==],
+"theme Surface"
+)
+
+replacePlain(
+[==[    Surface2 = Color3.fromHex("#121216"),]==],
+[==[    Surface2 = Color3.fromHex("#202628"),]==],
+"theme Surface2"
+)
+
+replacePlain(
+[==[    SurfaceHover = Color3.fromHex("#17151D"),]==],
+[==[    SurfaceHover = Color3.fromHex("#252D2D"),]==],
+"theme SurfaceHover"
+)
+
+replacePlain(
+[==[    Accent = Color3.fromHex("#36255C"),]==],
+[==[    Accent = Color3.fromHex("#205D49"),]==],
+"theme Accent"
+)
+
+replacePlain(
+[==[    AccentHover = Color3.fromHex("#4A337D"),]==],
+[==[    AccentHover = Color3.fromHex("#28765A"),]==],
+"theme AccentHover"
+)
+
+replacePlain(
+[==[    AccentSoft = Color3.fromHex("#2A1D49"),]==],
+[==[    AccentSoft = Color3.fromHex("#183A2F"),]==],
+"theme AccentSoft"
+)
+
+replacePlain(
+[==[    AccentBorder = Color3.fromHex("#473270"),]==],
+[==[    AccentBorder = Color3.fromHex("#367A60"),]==],
+"theme AccentBorder"
+)
+
+replacePlain(
+[==[    AccentBright = Color3.fromHex("#B08BE3"),]==],
+[==[    AccentBright = Color3.fromHex("#83DCB1"),]==],
+"theme AccentBright"
+)
+
+replacePlain(
+[==[    Text = Color3.fromHex("#F5F5F7"),]==],
+[==[    Text = Color3.fromHex("#F1F5F3"),]==],
+"theme Text"
+)
+
+replacePlain(
+[==[    TextSoft = Color3.fromHex("#D4D4D8"),]==],
+[==[    TextSoft = Color3.fromHex("#D0DAD5"),]==],
+"theme TextSoft"
+)
+
+replacePlain(
+[==[    Muted = Color3.fromHex("#85858F"),]==],
+[==[    Muted = Color3.fromHex("#A0AEA7"),]==],
+"theme Muted"
+)
+
+replacePlain(
+[==[    Muted2 = Color3.fromHex("#858590"),]==],
+[==[    Muted2 = Color3.fromHex("#899A92"),]==],
+"theme Muted2"
+)
+
+replacePlain(
+[==[    Success = Color3.fromHex("#72AB8C"),]==],
+[==[    Success = Color3.fromHex("#83DCB1"),]==],
+"theme Success"
+)
+
+replacePlain(
+[==[    Danger = Color3.fromHex("#D66978"),]==],
+[==[    Danger = Color3.fromHex("#E48494"),]==],
+"theme Danger"
+)
+
+replacePlain(
+[==[Color3.fromHex("#171022")]==],
+[==[Color3.fromHex("#17231E")]==],
+"chrome #171022 1"
+)
+
+replacePlain(
+[==[Color3.fromHex("#8870B5")]==],
+[==[Color3.fromHex("#91C5AA")]==],
+"chrome #8870B5 1"
+)
+
+replacePlain(
+[==[Color3.fromHex("#8870B5")]==],
+[==[Color3.fromHex("#91C5AA")]==],
+"chrome #8870B5 2"
+)
+
+replacePlain(
+[==[Color3.fromHex("#8870B5")]==],
+[==[Color3.fromHex("#91C5AA")]==],
+"chrome #8870B5 3"
+)
+
+replacePlain(
+[==[Color3.fromHex("#7352B0")]==],
+[==[Color3.fromHex("#68BE95")]==],
+"chrome #7352B0 1"
+)
+
+replacePlain(
+[==[Color3.fromHex("#D9CFF1")]==],
+[==[Color3.fromHex("#D1EFDF")]==],
+"chrome #D9CFF1 1"
+)
+
+replacePlain(
+[==[Color3.fromHex("#C4B3E4")]==],
+[==[Color3.fromHex("#B3E6CC")]==],
+"chrome #C4B3E4 1"
+)
+
+replacePlain(
+[==[Color3.fromHex("#C4B3E4")]==],
+[==[Color3.fromHex("#B3E6CC")]==],
+"chrome #C4B3E4 2"
+)
+
+replacePlain(
+[==[Color3.fromHex("#E7DFF6")]==],
+[==[Color3.fromHex("#E0F5E9")]==],
+"chrome #E7DFF6 1"
+)
+
+replacePlain(
+[==[Color3.fromHex("#E7DFF6")]==],
+[==[Color3.fromHex("#E0F5E9")]==],
+"chrome #E7DFF6 2"
+)
+
+replacePlain(
+[==[Color3.fromHex("#3B2A5E")]==],
+[==[Color3.fromHex("#426F59")]==],
+"chrome #3B2A5E 1"
+)
+
+replacePlain(
+[==[Color3.fromHex("#5B4A77")]==],
+[==[Color3.fromHex("#577E68")]==],
+"chrome #5B4A77 1"
+)
+
+replacePlain(
+[==[Color3.fromHex("#6D657B")]==],
+[==[Color3.fromHex("#91A69A")]==],
+"chrome #6D657B 1"
+)
+
+replacePlain(
+[==[Color3.fromHex("#777783")]==],
+[==[Color3.fromHex("#98AB9E")]==],
+"chrome #777783 1"
+)
+
+replacePlain(
+[==[Color3.fromHex("#777783")]==],
+[==[Color3.fromHex("#98AB9E")]==],
+"chrome #777783 2"
+)
+
+replacePlain(
+[==[Color3.fromHex("#9B9BA4")]==],
+[==[Color3.fromHex("#AEBFB4")]==],
+"chrome #9B9BA4 1"
+)
+
+replacePlain(
+[==[Color3.fromHex("#A8A8B0")]==],
+[==[Color3.fromHex("#BFCCC3")]==],
+"chrome #A8A8B0 1"
+)
+
+replacePlain(
+[==[Color3.fromHex("#65656E")]==],
+[==[Color3.fromHex("#8F9F95")]==],
+"chrome #65656E 1"
+)
+
+replacePlain(
+[==[Color3.fromHex("#666671")]==],
+[==[Color3.fromHex("#8F9F95")]==],
+"chrome #666671 1"
+)
+
+replacePlain(
+[==[Color3.fromHex("#666671")]==],
+[==[Color3.fromHex("#8F9F95")]==],
+"chrome #666671 2"
+)
+
+replacePlain(
+[==[Color3.fromHex("#A7A7AF")]==],
+[==[Color3.fromHex("#AFBFB5")]==],
+"chrome #A7A7AF 1"
+)
+
+replacePlain(
+[==[Color3.fromHex("#92929B")]==],
+[==[Color3.fromHex("#A5B5AA")]==],
+"chrome #92929B 1"
+)
+
+replacePlain(
+[==[Color3.fromHex("#101014")]==],
+[==[Color3.fromHex("#141A17")]==],
+"chrome #101014 1"
+)
+
+replacePlain(
+[==[Color3.fromHex("#111116")]==],
+[==[Color3.fromHex("#1A211D")]==],
+"chrome #111116 1"
+)
+
+replacePlain(
+[==[    Border = Color3.fromRGB(31, 31, 36),]==],
+[==[    Border = Color3.fromRGB(48, 60, 54),]==],
+"theme border"
+)
+
+replacePlain(
+[==[Color3.fromRGB(34, 34, 39)]==],
+[==[THEME.Border]==],
+"consistent border 34, 34, 39 1"
+)
+
+replacePlain(
+[==[Color3.fromRGB(34, 34, 39)]==],
+[==[THEME.Border]==],
+"consistent border 34, 34, 39 2"
+)
+
+replacePlain(
+[==[Color3.fromRGB(34, 34, 39)]==],
+[==[THEME.Border]==],
+"consistent border 34, 34, 39 3"
+)
+
+replacePlain(
+[==[Color3.fromRGB(34, 34, 39)]==],
+[==[THEME.Border]==],
+"consistent border 34, 34, 39 4"
+)
+
+replacePlain(
+[==[Color3.fromRGB(34, 34, 40)]==],
+[==[THEME.Border]==],
+"consistent border 34, 34, 40 1"
+)
+
+replacePlain(
+[==[Color3.fromRGB(34, 34, 40)]==],
+[==[THEME.Border]==],
+"consistent border 34, 34, 40 2"
+)
+
+replacePlain(
+[==[Color3.fromRGB(34, 34, 40)]==],
+[==[THEME.Border]==],
+"consistent border 34, 34, 40 3"
+)
+
+replacePlain(
+[==[Color3.fromRGB(34, 34, 40)]==],
+[==[THEME.Border]==],
+"consistent border 34, 34, 40 4"
+)
+
+replacePlain(
+[==[Color3.fromRGB(44, 44, 51)]==],
+[==[THEME.Border]==],
+"consistent border 44, 44, 51 1"
+)
+
+replacePlain(
+[==[Color3.fromRGB(44, 44, 51)]==],
+[==[THEME.Border]==],
+"consistent border 44, 44, 51 2"
+)
+
+replacePlain(
+[==[Color3.fromRGB(45, 45, 52)]==],
+[==[THEME.Border]==],
+"consistent border 45, 45, 52 1"
+)
+
+replacePlain(
+[==[Color3.fromRGB(38, 38, 44)]==],
+[==[THEME.Border]==],
+"consistent border 38, 38, 44 1"
+)
+
+replacePlain(
+[==[Color3.fromRGB(40, 40, 46)]==],
+[==[THEME.Border]==],
+"consistent border 40, 40, 46 1"
+)
+
+replacePlain(
+[==[    Text = "Script library  •  Online library",]==],
+[==[    Text = "Your script library",]==],
+"header subtitle"
+)
+
+replacePlain(
+[==[    Text = "SaltyHub",
+    TextColor3 = THEME.Text,
+    TextSize = 14,]==],
+[==[    Text = "SaltyHub",
+    TextColor3 = THEME.Text,
+    TextSize = 16,]==],
+"header hierarchy"
+)
+
+replacePlain(
+[==[TextSize = 8,]==],
+[==[TextSize = 9,]==],
+"category readability 1"
+)
+
+replacePlain(
+[==[TextSize = 8,]==],
+[==[TextSize = 9,]==],
+"category readability 2"
+)
+
+replacePlain(
+[==[TextSize = 8,]==],
+[==[TextSize = 9,]==],
+"category readability 3"
+)
+
+replacePlain(
+[==[TextSize = 8,]==],
+[==[TextSize = 9,]==],
+"category readability 4"
+)
+
+replacePlain(
+[==[    PlaceholderText = "Search scripts, games, or categories...",]==],
+[==[    PlaceholderText = "Search your library...",]==],
+"search copy"
+)
+
+replacePlain(
+[==[    local cardStroke = card:FindFirstChildOfClass("UIStroke")]==],
+[==[    create("UIGradient", {
+        Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(218, 230, 222)),
+        Rotation = 90,
+        Parent = card,
+    })
+    local cardStroke = card:FindFirstChildOfClass("UIStroke")]==],
+"grid depth"
+)
+
+replacePlain(
+[==[local function createListCard(entry, order)
+    local root = create("Frame", {
+        Name = entry.Id,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        LayoutOrder = order,
+    })
+
+    local card = create("Frame", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = THEME.Surface,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Parent = root,
+    }, { corner(11), stroke(THEME.Border, 0.08, 1) })
+    local cardStroke = card:FindFirstChildOfClass("UIStroke")
+
+    local imageWrap = create("Frame", {
+        Position = UDim2.fromOffset(8, 8),
+        Size = UDim2.fromOffset(114, 76),
+        BackgroundColor3 = THEME.Surface2,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Parent = card,
+    }, { corner(10) })
+    local image = create("ImageLabel", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Image = "",
+        ImageTransparency = 1,
+        ImageColor3 = Color3.fromRGB(218, 218, 226),
+        ScaleType = Enum.ScaleType.Crop,
+        Parent = imageWrap,
+    })
+    if entry.Id == "velora-piano" then
+        local fallback = addVeloraPianoFallback(imageWrap, UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), image.ZIndex)
+        bindThumbnailFallback(image, fallback)
+    end
+    setRemoteImage(image, entry.ImageUrl, entry.ImageCache)
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(136, 12),
+        Size = UDim2.fromOffset(180, 11),
+        BackgroundTransparency = 1,
+        Text = entry.Category,
+        TextColor3 = Color3.fromHex("#91C5AA"),
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Bold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = card,
+    })
+
+    local title = create("TextLabel", {
+        Position = UDim2.fromOffset(136, 28),
+        Size = UDim2.new(1, -340, 0, 18),
+        BackgroundTransparency = 1,
+        Text = entry.Name,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        TextColor3 = Color3.fromHex("#EEEEF1"),
+        TextSize = 13,
+        FontFace = font(Enum.FontWeight.SemiBold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = card,
+    })
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(136, 47),
+        Size = UDim2.new(1, -340, 0, 15),
+        BackgroundTransparency = 1,
+        Text = entry.Game,
+        TextColor3 = Color3.fromHex("#93939E"),
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Regular),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        Parent = card,
+    })
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(136, 65),
+        Size = UDim2.new(1, -345, 0, 16),
+        BackgroundTransparency = 1,
+        Text = entry.Description,
+        TextColor3 = Color3.fromHex("#A5B5AA"),
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Regular),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        Parent = card,
+    })
+
+    makeHeartButton(card, entry, UDim2.new(1, -105, 0, 12), 8)
+    makeLoadButton(card, entry, UDim2.fromOffset(82, 29), UDim2.new(1, -95, 0.5, -14), 8)
+
+    local clickLayer = create("TextButton", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Text = "",
+        AutoButtonColor = false,
+        ZIndex = 3,
+        Parent = card,
+    })
+    clickLayer.MouseButton1Click:Connect(function()
+        openDetails(entry)
+    end)
+    clickLayer.MouseEnter:Connect(function()
+        tween(card, 0.14, { BackgroundColor3 = THEME.SurfaceHover, Position = UDim2.fromOffset(0, -1) })
+        tween(cardStroke, 0.18, { Color = THEME.AccentBorder, Transparency = 0 })
+        tween(image, 0.16, { ImageColor3 = Color3.fromRGB(242, 242, 248) })
+        tween(title, 0.18, { TextColor3 = THEME.Text })
+    end)
+    clickLayer.MouseLeave:Connect(function()
+        tween(card, 0.14, { BackgroundColor3 = THEME.Surface, Position = UDim2.fromOffset(0, 0) })
+        tween(cardStroke, 0.18, { Color = THEME.Border, Transparency = 0.08 })
+        tween(image, 0.16, { ImageColor3 = Color3.fromRGB(218, 218, 226) })
+        tween(title, 0.18, { TextColor3 = Color3.fromHex("#EEEEF1") })
+    end)
+
+    return root
+end
+
+]==],
+[==[local function createListCard(entry, order)
+    local root = create("Frame", {
+        Name = entry.Id,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        LayoutOrder = order,
+    })
+
+    local card = create("Frame", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = THEME.Surface,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Parent = root,
+    }, { corner(11), stroke(THEME.Border, 0.08, 1) })
+    create("UIGradient", {
+        Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(218, 230, 222)),
+        Rotation = 90,
+        Parent = card,
+    })
+    local cardStroke = card:FindFirstChildOfClass("UIStroke")
+
+    local imageWrap = create("Frame", {
+        Position = UDim2.fromOffset(8, 8),
+        Size = UDim2.fromOffset(114, 76),
+        BackgroundColor3 = THEME.Surface2,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Parent = card,
+    }, { corner(10) })
+    local image = create("ImageLabel", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Image = "",
+        ImageTransparency = 1,
+        ImageColor3 = Color3.fromRGB(218, 218, 226),
+        ScaleType = Enum.ScaleType.Crop,
+        Parent = imageWrap,
+    })
+    if entry.Id == "velora-piano" then
+        local fallback = addVeloraPianoFallback(imageWrap, UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), image.ZIndex)
+        bindThumbnailFallback(image, fallback)
+    end
+    setRemoteImage(image, entry.ImageUrl, entry.ImageCache)
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(136, 12),
+        Size = UDim2.fromOffset(180, 11),
+        BackgroundTransparency = 1,
+        Text = entry.Category,
+        TextColor3 = Color3.fromHex("#91C5AA"),
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Bold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = card,
+    })
+
+    local title = create("TextLabel", {
+        Position = UDim2.fromOffset(136, 28),
+        Size = UDim2.new(1, -340, 0, 18),
+        BackgroundTransparency = 1,
+        Text = entry.Name,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        TextColor3 = Color3.fromHex("#EEEEF1"),
+        TextSize = 13,
+        FontFace = font(Enum.FontWeight.SemiBold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = card,
+    })
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(136, 47),
+        Size = UDim2.new(1, -340, 0, 15),
+        BackgroundTransparency = 1,
+        Text = entry.Game,
+        TextColor3 = Color3.fromHex("#93939E"),
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Regular),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        Parent = card,
+    })
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(136, 65),
+        Size = UDim2.new(1, -345, 0, 16),
+        BackgroundTransparency = 1,
+        Text = entry.Description,
+        TextColor3 = Color3.fromHex("#A5B5AA"),
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Regular),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        Parent = card,
+    })
+
+    makeHeartButton(card, entry, UDim2.new(1, -105, 0, 12), 8)
+    makeLoadButton(card, entry, UDim2.fromOffset(82, 29), UDim2.new(1, -95, 0.5, -14), 8)
+
+    local clickLayer = create("TextButton", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Text = "",
+        AutoButtonColor = false,
+        ZIndex = 3,
+        Parent = card,
+    })
+    clickLayer.MouseButton1Click:Connect(function()
+        openDetails(entry)
+    end)
+    clickLayer.MouseEnter:Connect(function()
+        tween(card, 0.14, { BackgroundColor3 = THEME.SurfaceHover, Position = UDim2.fromOffset(0, -1) })
+        tween(cardStroke, 0.18, { Color = THEME.AccentBorder, Transparency = 0 })
+        tween(image, 0.16, { ImageColor3 = Color3.fromRGB(242, 242, 248) })
+        tween(title, 0.18, { TextColor3 = THEME.Text })
+    end)
+    clickLayer.MouseLeave:Connect(function()
+        tween(card, 0.14, { BackgroundColor3 = THEME.Surface, Position = UDim2.fromOffset(0, 0) })
+        tween(cardStroke, 0.18, { Color = THEME.Border, Transparency = 0.08 })
+        tween(image, 0.16, { ImageColor3 = Color3.fromRGB(218, 218, 226) })
+        tween(title, 0.18, { TextColor3 = Color3.fromHex("#EEEEF1") })
+    end)
+
+    return root
+end
+
+]==],
+"list depth"
+)
+
+replacePlain(
+[==[    }, { corner(5) })
+
+    local label = create("TextLabel", {]==],
+[==[    }, { corner(7), stroke(THEME.AccentBorder, 0.25, 1) })
+
+    local label = create("TextLabel", {]==],
+"load action frame"
+)
+
+replacePlain(
+[==[    create("TextLabel", {
+        Position = UDim2.fromOffset(18, 156),
+        Size = UDim2.fromOffset(220, 12),
+        BackgroundTransparency = 1,
+        Text = entry.Category,
+        TextColor3 = Color3.fromHex("#91C5AA"),
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Bold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 57,
+        Parent = detailPanel,
+    })
+    create("TextLabel", {
+        Position = UDim2.fromOffset(18, 176),
+        Size = UDim2.new(1, -36, 0, 28),
+        BackgroundTransparency = 1,
+        Text = entry.Name,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        TextColor3 = THEME.Text,
+        TextSize = 20,
+        FontFace = font(Enum.FontWeight.SemiBold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 57,
+        Parent = detailPanel,
+    })
+    create("TextLabel", {
+        Position = UDim2.fromOffset(18, 205),
+        Size = UDim2.new(1, -36, 0, 16),
+        BackgroundTransparency = 1,
+        Text = entry.Game,
+        TextColor3 = Color3.fromHex("#98AB9E"),
+        TextSize = 10,
+        FontFace = font(Enum.FontWeight.Regular),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 57,
+        Parent = detailPanel,
+    })
+    create("TextLabel", {
+        Position = UDim2.fromOffset(18, 233),
+        Size = UDim2.new(1, -36, 0, 56),
+        BackgroundTransparency = 1,
+        Text = entry.Description,
+        TextColor3 = Color3.fromHex("#AEBFB4"),
+        TextSize = 10,
+        FontFace = font(Enum.FontWeight.Regular),
+        TextWrapped = true,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 57,
+        Parent = detailPanel,
+    })
+
+    create("Frame", {
+        Position = UDim2.fromOffset(18, 298),
+        Size = UDim2.new(1, -36, 0, 1),
+        BackgroundColor3 = THEME.Border,
+        BackgroundTransparency = 0.2,
+        BorderSizePixel = 0,
+        ZIndex = 57,
+        Parent = detailPanel,
+    })
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(18, 314),
+        Size = UDim2.fromOffset(220, 12),
+        BackgroundTransparency = 1,
+        Text = "SUPPORTED FEATURES",
+        TextColor3 = Color3.fromHex("#91A69A"),
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Bold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 57,
+        Parent = detailPanel,
+    })
+
+    for i, feature in ipairs(entry.Features or {}) do
+        create("TextLabel", {
+            Position = UDim2.fromOffset(20, 337 + (i - 1) * 24),
+            Size = UDim2.new(1, -40, 0, 18),
+            BackgroundTransparency = 1,
+            Text = "✓   " .. feature,
+            TextColor3 = Color3.fromHex("#BFCCC3"),
+            TextSize = 10,
+            FontFace = font(Enum.FontWeight.Regular),
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 57,
+            Parent = detailPanel,
+        })
+    end
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(18, 421),
+        Size = UDim2.new(1, -36, 0, 16),
+        BackgroundTransparency = 1,
+        Text = "Last updated  " .. entry.Updated,
+        TextColor3 = Color3.fromHex("#98AB9E"),
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Regular),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 57,
+        Parent = detailPanel,
+    })
+
+]==],
+[==[    local detailBody = create("ScrollingFrame", {
+        Name = "DetailBody",
+        Position = UDim2.fromOffset(0, 144),
+        Size = UDim2.new(1, 0, 1, -216),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        CanvasSize = UDim2.fromOffset(0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        ScrollingDirection = Enum.ScrollingDirection.Y,
+        ScrollBarThickness = 3,
+        ScrollBarImageColor3 = THEME.AccentBorder,
+        ZIndex = 57,
+        Parent = detailPanel,
+    })
+    create("TextLabel", {
+        Position = UDim2.fromOffset(18, 12),
+        Size = UDim2.fromOffset(220, 12),
+        BackgroundTransparency = 1,
+        Text = entry.Category,
+        TextColor3 = Color3.fromHex("#91C5AA"),
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Bold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 57,
+        Parent = detailBody,
+    })
+    create("TextLabel", {
+        Position = UDim2.fromOffset(18, 32),
+        Size = UDim2.new(1, -36, 0, 28),
+        BackgroundTransparency = 1,
+        Text = entry.Name,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        TextColor3 = THEME.Text,
+        TextSize = 20,
+        FontFace = font(Enum.FontWeight.SemiBold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 57,
+        Parent = detailBody,
+    })
+    create("TextLabel", {
+        Position = UDim2.fromOffset(18, 61),
+        Size = UDim2.new(1, -36, 0, 16),
+        BackgroundTransparency = 1,
+        Text = entry.Game,
+        TextColor3 = Color3.fromHex("#98AB9E"),
+        TextSize = 10,
+        FontFace = font(Enum.FontWeight.Regular),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 57,
+        Parent = detailBody,
+    })
+    create("TextLabel", {
+        Position = UDim2.fromOffset(18, 89),
+        Size = UDim2.new(1, -36, 0, 56),
+        BackgroundTransparency = 1,
+        Text = entry.Description,
+        TextColor3 = Color3.fromHex("#AEBFB4"),
+        TextSize = 10,
+        FontFace = font(Enum.FontWeight.Regular),
+        TextWrapped = true,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 57,
+        Parent = detailBody,
+    })
+
+    create("Frame", {
+        Position = UDim2.fromOffset(18, 154),
+        Size = UDim2.new(1, -36, 0, 1),
+        BackgroundColor3 = THEME.Border,
+        BackgroundTransparency = 0.2,
+        BorderSizePixel = 0,
+        ZIndex = 57,
+        Parent = detailBody,
+    })
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(18, 170),
+        Size = UDim2.fromOffset(220, 12),
+        BackgroundTransparency = 1,
+        Text = "SUPPORTED FEATURES",
+        TextColor3 = Color3.fromHex("#91A69A"),
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Bold),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 57,
+        Parent = detailBody,
+    })
+
+    for i, feature in ipairs(entry.Features or {}) do
+        create("TextLabel", {
+            Position = UDim2.fromOffset(20, 193 + (i - 1) * 26),
+            Size = UDim2.new(1, -40, 0, 18),
+            BackgroundTransparency = 1,
+            Text = "✓   " .. feature,
+            TextColor3 = Color3.fromHex("#BFCCC3"),
+            TextSize = 10,
+            FontFace = font(Enum.FontWeight.Regular),
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 57,
+            Parent = detailBody,
+        })
+    end
+
+    create("TextLabel", {
+        Position = UDim2.fromOffset(18, 205 + #(entry.Features or {}) * 26),
+        Size = UDim2.new(1, -36, 0, 16),
+        BackgroundTransparency = 1,
+        Text = "Last updated  " .. entry.Updated,
+        TextColor3 = Color3.fromHex("#98AB9E"),
+        TextSize = 9,
+        FontFace = font(Enum.FontWeight.Regular),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 57,
+        Parent = detailBody,
+    })
+
+]==],
+"scrolling detail body"
+)
+
+replacePlain(
+[==[-- Compact controls ---------------------------------------------------------]==],
+[==[-- Consistent tactile feedback for secondary controls.
+local function bindControlPress(button)
+    button.Selectable = true
+    local pressScale = create("UIScale", { Scale = 1, Parent = button })
+    button.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            tween(pressScale, 0.07, { Scale = 0.96 })
+        end
+    end)
+    local function release() tween(pressScale, 0.12, { Scale = 1 }) end
+    button.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then release() end
+    end)
+    button.MouseLeave:Connect(release)
+end
+for _, button in pairs(filterButtons) do bindControlPress(button) end
+for _, button in ipairs({ sortButton, gridButton, listButton, closeButton }) do bindControlPress(button) end
+-- Compact controls ---------------------------------------------------------]==],
+"secondary press feedback"
+)
+
+replacePlain(
+[==[clearSearch.Activated:Connect(function()]==],
+[==[bindControlPress(clearSearch)
+clearSearch.Activated:Connect(function()]==],
+"search press feedback"
+)
+
+replacePlain(
+[==[sortButton.MouseButton1Click:Connect(function()
+    sortPopup.Visible = not sortPopup.Visible
+end)]==],
+[==[sortButton.Activated:Connect(function()
+    sortPopup.Visible = not sortPopup.Visible
+end)
+local dismissSortConnection = UserInputService.InputBegan:Connect(function(input)
+    if hubTerminated or not sortPopup.Visible then return end
+    if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
+    local function inside(object)
+        local p, s = object.AbsolutePosition, object.AbsoluteSize
+        return input.Position.X >= p.X and input.Position.X <= p.X + s.X
+            and input.Position.Y >= p.Y and input.Position.Y <= p.Y + s.Y
+    end
+    if not inside(sortButton) and not inside(sortPopup) then sortPopup.Visible = false end
+end)
+gui.Destroying:Once(function() dismissSortConnection:Disconnect() end)]==],
+"dismiss sort outside"
+)
+
 ]===]
 ]====]
 source = source:sub(1, polishAt - 1) .. premiumPolish .. source:sub(polishAt)
@@ -522,4 +1449,5 @@ if not chunk then
 end
 
 return chunk()
+
 
