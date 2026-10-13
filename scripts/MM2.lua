@@ -1,4 +1,4 @@
--- Salty MM2 v1.2 exact-source loader for Velora Hub.
+-- Salty MM2 v1.3 exact-source loader for Velora Hub.
 -- The original source is split into plain-text chunks only for repository transport.
 
 local BASE = "https://raw.githubusercontent.com/MrRos3/Hub/main/scripts/mm2/source/"
