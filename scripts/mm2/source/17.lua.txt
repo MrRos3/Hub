@@ -1,53 +1,77 @@
 
-
 --==============================================================
--- TARGET FLING & EXACT RETURN (SALTY MM2 v1.2)
+-- TARGET FLING & SAFE RETURN (SALTY MM2 v1.3)
 --==============================================================
--- Added after the original performance hub loads.
--- Uses the same local Walk Fling pulse used by SALTY's proven test script.
--- Server physics/network ownership decide whether contact affects the target.
--- No remote, entitlement, or anti-cheat bypass is performed.
+-- A player dropdown replaces the username input.
+-- Physics-based contact may not replicate in every server; no guarantee of
+-- affecting someone else's character. This never fires a server remote.
+-- The original v1.2 upward velocity of 10,000 is explicitly removed.
 
 local TargetFling = {
-    Query = "",
+    SelectedUserId = nil,
     Running = false,
     Cancel = false,
     Restoring = false,
     Saved = nil,
-    Power = 10000,
-    Duration = 0.8,
+    Power = 650, -- planar speed, not a velocity multiplier
+    Duration = 0.7,
+    Spin = 450,
+    ContactAttempts = 0,
 }
 
-local function FindFlingTarget(query)
-    query = tostring(query or ""):lower():match("^%s*(.-)%s*$")
-    if query == "" then
-        return nil, "Enter a player username first"
-    end
+local TargetDropdown
+local PlayerTitlesById = {}
+local PlayerIdsByTitle = {}
 
-    local partial = {}
-    for _, player in ipairs(Players:GetPlayers()) do
+local function AvailableTargetPlayers()
+    local values = {}
+    local selectedStillHere = false
+    table.clear(PlayerTitlesById)
+    table.clear(PlayerIdsByTitle)
+
+    local all = Players:GetPlayers()
+    table.sort(all, function(a, b)
+        return a.Name:lower() < b.Name:lower()
+    end)
+
+    for _, player in ipairs(all) do
         if player ~= LocalPlayer then
-            local username = player.Name:lower()
-            local display = player.DisplayName:lower()
-            if username == query or display == query then
-                return player
-            end
-            if username:sub(1, #query) == query or display:sub(1, #query) == query then
-                partial[#partial + 1] = player
+            -- Include the actual username to prevent duplicate display-name ambiguity.
+            local title = player.DisplayName .. " (@" .. player.Name .. ")"
+            PlayerTitlesById[player.UserId] = title
+            PlayerIdsByTitle[title] = player.UserId
+            values[#values + 1] = title
+            if TargetFling.SelectedUserId == player.UserId then
+                selectedStillHere = true
             end
         end
     end
 
-    if #partial == 1 then
-        return partial[1]
-    elseif #partial > 1 then
-        return nil, "Several players match that name. Type more letters."
+    if not selectedStillHere then
+        TargetFling.SelectedUserId = nil
     end
-    return nil, "Player not found"
+    if #values == 0 then
+        values[1] = "No other players available"
+    end
+    return values
+end
+
+local function RefreshTargetDropdown()
+    if not TargetDropdown or not Runtime.Running then return end
+    local values = AvailableTargetPlayers()
+    -- The current VantaUI dropdown uses its Value as the selected label.
+    -- Select nil when the user has left, otherwise preserve the UserId choice.
+    local desiredTitle = TargetFling.SelectedUserId
+        and PlayerTitlesById[TargetFling.SelectedUserId]
+        or nil
+    if TargetDropdown.Value ~= desiredTitle then
+        TargetDropdown:Select(desiredTitle)
+    end
+    TargetDropdown:Refresh(values)
 end
 
 local function FlingTargetValid(player)
-    if not player or player == LocalPlayer or not player.Parent then
+    if not player or player == LocalPlayer or player.Parent ~= Players then
         return false
     end
     local character = player.Character
@@ -56,10 +80,31 @@ local function FlingTargetValid(player)
     return root ~= nil and hum ~= nil and hum.Health > 0
 end
 
-local function RestoreFromFling()
-    if TargetFling.Restoring then
-        return
+local function GetSelectedTarget()
+    local userId = TargetFling.SelectedUserId
+    if not userId then
+        return nil
     end
+    local ok, result = pcall(function()
+        return Players:GetPlayerByUserId(userId)
+    end)
+    return ok and result or nil
+end
+
+local function Horizontal(vector)
+    return Vector3.new(vector.X, 0, vector.Z)
+end
+
+local function FaceTargetDirection(sourcePos, destPos)
+    local direction = Horizontal(destPos - sourcePos)
+    if direction.Magnitude <= 0.05 then
+        return Vector3.new(1, 0, 0)
+    end
+    return direction.Unit
+end
+
+local function RestoreFromFling()
+    if TargetFling.Restoring then return end
     local saved = TargetFling.Saved
     if not saved then
         TargetFling.Running = false
@@ -69,24 +114,31 @@ local function RestoreFromFling()
     TargetFling.Restoring = true
     TargetFling.Cancel = true
 
-    -- Use only the character/root that was saved, never a new respawned body.
+    if TargetFling.Spinner then
+        pcall(function() TargetFling.Spinner:Destroy() end)
+        TargetFling.Spinner = nil
+    end
+
     local root = saved.Root
     local humanoid = saved.Humanoid
-    if root and root.Parent and saved.Character and saved.Character.Parent then
+    local sameCharacter = root and root.Parent and saved.Character
+        and saved.Character.Parent and LocalPlayer.Character == saved.Character
+
+    if sameCharacter then
         pcall(function()
             root.Anchored = true
-            root.Velocity = Vector3.zero
             root.AssemblyLinearVelocity = Vector3.zero
             root.AssemblyAngularVelocity = Vector3.zero
             root.CFrame = saved.CFrame
         end)
+        -- Pause one simulation frame to prevent residual contact fling on return.
         RunService.Heartbeat:Wait()
         pcall(function()
             root.CFrame = saved.CFrame
-            root.Velocity = Vector3.zero
             root.AssemblyLinearVelocity = Vector3.zero
             root.AssemblyAngularVelocity = Vector3.zero
             root.Anchored = saved.Anchored
+            root.CanCollide = saved.CanCollide
         end)
     end
 
@@ -112,40 +164,38 @@ local function RestoreFromFling()
     if Runtime.Action == "TargetFling" then
         Runtime.Action = nil
     end
-
     TargetFling.Saved = nil
-    TargetFling.Restoring = false
     TargetFling.Running = false
+    TargetFling.Restoring = false
 end
 
 local function StartTargetFling(target)
     if TargetFling.Running then
-        Notify("Target Fling", "Already flinging. Use Cancel & Return first.", "alert-circle")
+        Notify("Target Fling", "Already running. Use Cancel & Return.", "alert-circle")
         return
     end
     if Runtime.Action then
-        Notify("Target Fling", "Another hub movement action is running.", "alert-circle")
+        Notify("Target Fling", "Another movement action is active.", "alert-circle")
         return
     end
     if not FlingTargetValid(target) then
-        Notify("Target Fling", "Player is missing, dead, or not streamed in.", "alert-circle")
+        Notify("Target Fling", "Select a living player currently in this server.", "alert-circle")
         return
     end
 
     local character, humanoid, root = GetCharacter()
-    if not character or not humanoid or humanoid.Health <= 0 or not root then
-        Notify("Target Fling", "Your character isn't ready.", "alert-circle")
+    if not root or not humanoid or humanoid.Health <= 0 then
+        Notify("Target Fling", "Your character is not ready.", "alert-circle")
         return
     end
 
     TargetFling.Running = true
     TargetFling.Cancel = false
+    TargetFling.ContactAttempts = 0
     TargetFling.Saved = {
-        Character = character,
-        Humanoid = humanoid,
-        Root = root,
-        CFrame = root.CFrame,
-        Anchored = root.Anchored,
+        Root = root, Humanoid = humanoid, Character = character,
+        CFrame = root.CFrame, Anchored = root.Anchored,
+        CanCollide = root.CanCollide,
         WalkSpeed = humanoid.WalkSpeed,
         AutoRotate = humanoid.AutoRotate,
         PlatformStand = humanoid.PlatformStand,
@@ -161,124 +211,176 @@ local function StartTargetFling(target)
 
     task.spawn(function()
         local contacted = false
+        local abortReason = nil
         local ok, reason = pcall(function()
-            local targetRoot = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+            local targetRoot = target.Character
+                and target.Character:FindFirstChild("HumanoidRootPart")
             if not targetRoot then
+                abortReason = "Target character disappeared"
                 return
             end
 
-            -- Stage just outside the target. The Humanoid then walks into
-            -- them while the velocity pulse runs, rather than using a long
-            -- teleport/orbit loop that tends to launch the local character.
-            local predicted = targetRoot.Position
-            local v = targetRoot.AssemblyLinearVelocity
-            predicted += Vector3.new(
-                math.clamp(v.X * 0.04, -3, 3), 0,
-                math.clamp(v.Z * 0.04, -3, 3)
-            )
+            local targetPos = targetRoot.Position
+            -- Ground-relative staging, deliberately no Y-axis force or boost.
+            -- Place a couple of studs away, then move toward the target.
+            local look = Horizontal(targetRoot.CFrame.LookVector)
+            if look.Magnitude < 0.05 then
+                look = Vector3.new(1, 0, 0)
+            else
+                look = look.Unit
+            end
+            local stage = targetPos + look * 3.1
+            stage = Vector3.new(stage.X, targetPos.Y, stage.Z)
 
-            local back = targetRoot.CFrame.LookVector * 5.0
-            local stage = Vector3.new(
-                predicted.X + back.X,
-                targetRoot.Position.Y,
-                predicted.Z + back.Z
-            )
             root.AssemblyLinearVelocity = Vector3.zero
             root.AssemblyAngularVelocity = Vector3.zero
-            root.CFrame = CFrame.lookAt(stage, Vector3.new(predicted.X, stage.Y, predicted.Z))
-            humanoid.Sit = false
+            root.CFrame = CFrame.lookAt(stage, targetPos)
             humanoid.PlatformStand = false
+            humanoid.Sit = false
             humanoid.AutoRotate = true
-            humanoid.WalkSpeed = math.max(TargetFling.Saved.WalkSpeed, 38)
+            humanoid.WalkSpeed = math.max(TargetFling.Saved.WalkSpeed, 32)
+
             RunService.Heartbeat:Wait()
+            -- If MM2 corrects CFrame back to spawn or throws us upward, stop.
+            local initialDistance = (root.Position - targetPos).Magnitude
+            if initialDistance > 16 then
+                abortReason = "Server moved your character away from the target"
+                return
+            end
 
-            local start = os.clock()
-            while Runtime.Running and not TargetFling.Cancel and
-                os.clock() - start < TargetFling.Duration and FlingTargetValid(target) do
-                if LocalPlayer.Character ~= character or not root.Parent then
+            local started = os.clock()
+            local nextPulse = 0
+            while Runtime.Running and not TargetFling.Cancel
+                and os.clock() - started < TargetFling.Duration
+                and FlingTargetValid(target)
+                and LocalPlayer.Character == character
+                and root.Parent do
+
+                targetRoot = target.Character
+                    and target.Character:FindFirstChild("HumanoidRootPart")
+                if not targetRoot then break end
+
+                local gapY = math.abs(root.Position.Y - targetRoot.Position.Y)
+                local distance = Horizontal(targetRoot.Position - root.Position).Magnitude
+                if gapY > 9 or distance > 24 then
+                    abortReason = "Unsafe displacement detected, returning"
                     break
                 end
-                targetRoot = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
-                if not targetRoot then
-                    break
+
+                local towards = FaceTargetDirection(root.Position, targetRoot.Position)
+                if distance > 0.8 then
+                    humanoid:Move(towards, false)
+                else
+                    humanoid:Move(Vector3.zero, false)
                 end
 
-                local delta = targetRoot.Position - root.Position
-                local planar = Vector3.new(delta.X, 0, delta.Z)
-                local distance = planar.Magnitude
-                if distance > 0.03 then
-                    humanoid:Move(planar.Unit, false)
-                end
-                if distance <= 3.2 then
+                -- Contact-only horizontal physics, not an always-on skyward pulse.
+                if distance <= 4.0 and gapY <= 4.5
+                    and os.clock() >= nextPulse then
                     contacted = true
-                end
+                    TargetFling.ContactAttempts += 1
+                    nextPulse = os.clock() + 0.11
 
-                -- SALTY Walk Fling pulse. Restore normal velocity each frame.
-                local oldVelocity = root.Velocity
-                root.Velocity = oldVelocity * TargetFling.Power +
-                    Vector3.new(0, TargetFling.Power, 0)
-                RunService.RenderStepped:Wait()
-                if root and root.Parent then
-                    root.Velocity = oldVelocity
+                    if not TargetFling.Spinner then
+                        local spinner = Instance.new("BodyAngularVelocity")
+                        spinner.Name = "SaltyTargetFling"
+                        spinner.AngularVelocity = Vector3.new(0, TargetFling.Spin, 0)
+                        spinner.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+                        spinner.P = 1e6
+                        spinner.Parent = root
+                        TargetFling.Spinner = spinner
+                    end
+
+                    -- Strong planar push for one physics step, without Y velocity.
+                    -- Keep speed bounded so it doesn't launch the local avatar
+                    -- into the sky as the old v1.2 implementation did.
+                    local old = root.AssemblyLinearVelocity
+                    root.AssemblyLinearVelocity = Vector3.new(
+                        towards.X * TargetFling.Power, 0,
+                        towards.Z * TargetFling.Power
+                    )
+                    RunService.Heartbeat:Wait()
+                    if root and root.Parent then
+                        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                    end
+                else
+                    RunService.Heartbeat:Wait()
                 end
             end
         end)
 
         RestoreFromFling()
         if not ok then
-            Notify("Target Fling", "Error; attempted safe return: " .. tostring(reason), "alert-triangle")
+            Notify("Target Fling", "Error; returned safely: " .. tostring(reason), "alert-triangle")
         elseif Runtime.Running then
-            Notify("Target Fling",
-                (contacted and "Contact attempted" or "Contact not confirmed") ..
-                " with " .. target.Name .. ". Returned to your saved spot.",
-                "rotate-ccw")
+            local outcome = contacted
+                and ("Contact attempted (" .. TargetFling.ContactAttempts .. " pulses)")
+                or (abortReason or "No contact possible")
+            Notify("Target Fling", outcome .. " • Return requested.", "rotate-ccw")
         end
     end)
 end
 
-MovementTab:Section({
-    Title = "Target Fling & Return",
-})
+MovementTab:Section({ Title = "Target Fling & Return" })
 
-MovementTab:Input({
-    Title = "Target player",
-    Desc = "Enter a username or an unambiguous display-name prefix.",
-    Placeholder = "Username...",
+TargetDropdown = MovementTab:Dropdown({
+    Title = "Available Players",
+    Desc = "Pick someone currently in this server.",
+    Values = AvailableTargetPlayers(),
+    AllowNone = true,
+    SearchBarEnabled = true,
     Callback = function(value)
-        TargetFling.Query = tostring(value or "")
-    end,
-})
-
-MovementTab:Slider({
-    Title = "Fling Power",
-    Desc = "Velocity multiplier for local contact pulses.",
-    Value = {Min = 500, Max = 15000, Default = 10000},
-    Step = 500,
-    Callback = function(value)
-        TargetFling.Power = math.clamp(tonumber(value) or 10000, 500, 15000)
-    end,
-})
-
-MovementTab:Slider({
-    Title = "Fling Contact Duration",
-    Desc = "Seconds attempting close-range contact before returning.",
-    Value = {Min = 0.3, Max = 1.6, Default = 0.8},
-    Step = 0.1,
-    Callback = function(value)
-        TargetFling.Duration = math.clamp(tonumber(value) or 0.8, 0.3, 1.6)
+        local title = typeof(value) == "table" and value.Title or value
+        TargetFling.SelectedUserId = PlayerIdsByTitle[title]
     end,
 })
 
 MovementTab:Button({
-    Title = "Fling Target & Return",
+    Title = "Refresh Player List",
+    Icon = "refresh-cw",
+    Callback = RefreshTargetDropdown,
+})
+
+-- The dropdown updates automatically when players join or leave.
+Runtime:AddConnection(Players.PlayerAdded:Connect(function()
+    task.defer(RefreshTargetDropdown)
+end))
+Runtime:AddConnection(Players.PlayerRemoving:Connect(function(player)
+    if TargetFling.SelectedUserId == player.UserId then
+        TargetFling.SelectedUserId = nil
+    end
+    task.defer(RefreshTargetDropdown)
+end))
+
+MovementTab:Slider({
+    Title = "Horizontal Fling Force",
+    Desc = "No vertical lift. Lower values reduce self-launch risk.",
+    Value = {Min = 100, Max = 1600, Default = 650},
+    Step = 50,
+    Callback = function(value)
+        TargetFling.Power = math.clamp(tonumber(value) or 650, 100, 1600)
+    end,
+})
+
+MovementTab:Slider({
+    Title = "Contact Duration",
+    Value = {Min = 0.3, Max = 1.5, Default = 0.7},
+    Step = 0.1,
+    Callback = function(value)
+        TargetFling.Duration = math.clamp(tonumber(value) or 0.7, 0.3, 1.5)
+    end,
+})
+
+MovementTab:Button({
+    Title = "Fling Selected Player & Return",
     Icon = "zap",
     Callback = function()
-        local player, err = FindFlingTarget(TargetFling.Query)
-        if not player then
-            Notify("Target Fling", err, "alert-circle")
+        local target = GetSelectedTarget()
+        if not target then
+            Notify("Target Fling", "Select a player from Available Players.", "alert-circle")
             return
         end
-        StartTargetFling(player)
+        StartTargetFling(target)
     end,
 })
 
@@ -311,12 +413,11 @@ MovementTab:Button({
     end,
 })
 
--- Ensure singleton cleanup also cancels the fling and returns the player.
+-- Preserve singleton cleanup and attempt safe return before destroying MM2.
 local _SaltyOriginalDestroy = Runtime.Destroy
 function Runtime:Destroy(...)
     TargetFling.Cancel = true
     if TargetFling.Saved then
-        -- Never leave the user near a target when closing the hub.
         pcall(RestoreFromFling)
     end
     return _SaltyOriginalDestroy(self, ...)
