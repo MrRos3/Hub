@@ -1,6 +1,6 @@
 --[[
 ======================================================================
-                        SALTY MM2 v1.2
+                        SALTY MM2 v1.3
                        PERFORMANCE EDITION
                       PlaceId: 142823291
 ======================================================================
@@ -60,7 +60,7 @@ FEATURES
         ✓ Infinite Jump
         ✓ Noclip
         ✓ Fly • F
-        ✓ Target Fling & Return (username / Murderer / Sheriff)
+        ✓ Target Fling & Return (live dropdown / Murderer / Sheriff)
         ✓ Cancel Fling, adjust power / duration
 
     Utility
@@ -132,7 +132,7 @@ local Camera =
 --==============================================================
 
 local VERSION =
-    "v1.2"
+    "v1.3"
 
 local EXPECTED_PLACE =
     142823291
