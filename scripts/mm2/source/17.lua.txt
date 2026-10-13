@@ -1,0 +1,323 @@
+
+
+--==============================================================
+-- TARGET FLING & EXACT RETURN (SALTY MM2 v1.2)
+--==============================================================
+-- Added after the original performance hub loads.
+-- Uses the same local Walk Fling pulse used by SALTY's proven test script.
+-- Server physics/network ownership decide whether contact affects the target.
+-- No remote, entitlement, or anti-cheat bypass is performed.
+
+local TargetFling = {
+    Query = "",
+    Running = false,
+    Cancel = false,
+    Restoring = false,
+    Saved = nil,
+    Power = 10000,
+    Duration = 0.8,
+}
+
+local function FindFlingTarget(query)
+    query = tostring(query or ""):lower():match("^%s*(.-)%s*$")
+    if query == "" then
+        return nil, "Enter a player username first"
+    end
+
+    local partial = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local username = player.Name:lower()
+            local display = player.DisplayName:lower()
+            if username == query or display == query then
+                return player
+            end
+            if username:sub(1, #query) == query or display:sub(1, #query) == query then
+                partial[#partial + 1] = player
+            end
+        end
+    end
+
+    if #partial == 1 then
+        return partial[1]
+    elseif #partial > 1 then
+        return nil, "Several players match that name. Type more letters."
+    end
+    return nil, "Player not found"
+end
+
+local function FlingTargetValid(player)
+    if not player or player == LocalPlayer or not player.Parent then
+        return false
+    end
+    local character = player.Character
+    local hum = character and character:FindFirstChildOfClass("Humanoid")
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    return root ~= nil and hum ~= nil and hum.Health > 0
+end
+
+local function RestoreFromFling()
+    if TargetFling.Restoring then
+        return
+    end
+    local saved = TargetFling.Saved
+    if not saved then
+        TargetFling.Running = false
+        return
+    end
+
+    TargetFling.Restoring = true
+    TargetFling.Cancel = true
+
+    -- Use only the character/root that was saved, never a new respawned body.
+    local root = saved.Root
+    local humanoid = saved.Humanoid
+    if root and root.Parent and saved.Character and saved.Character.Parent then
+        pcall(function()
+            root.Anchored = true
+            root.Velocity = Vector3.zero
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+            root.CFrame = saved.CFrame
+        end)
+        RunService.Heartbeat:Wait()
+        pcall(function()
+            root.CFrame = saved.CFrame
+            root.Velocity = Vector3.zero
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+            root.Anchored = saved.Anchored
+        end)
+    end
+
+    if humanoid and humanoid.Parent then
+        pcall(function()
+            humanoid:Move(Vector3.zero, false)
+            humanoid.WalkSpeed = saved.WalkSpeed
+            humanoid.AutoRotate = saved.AutoRotate
+            humanoid.PlatformStand = saved.PlatformStand
+        end)
+    end
+
+    if Runtime.Running then
+        Settings.Noclip = saved.Noclip
+        if saved.Noclip then
+            pcall(ApplyNoclip)
+        end
+        if saved.Fly then
+            pcall(SetFly, true)
+        end
+    end
+
+    if Runtime.Action == "TargetFling" then
+        Runtime.Action = nil
+    end
+
+    TargetFling.Saved = nil
+    TargetFling.Restoring = false
+    TargetFling.Running = false
+end
+
+local function StartTargetFling(target)
+    if TargetFling.Running then
+        Notify("Target Fling", "Already flinging. Use Cancel & Return first.", "alert-circle")
+        return
+    end
+    if Runtime.Action then
+        Notify("Target Fling", "Another hub movement action is running.", "alert-circle")
+        return
+    end
+    if not FlingTargetValid(target) then
+        Notify("Target Fling", "Player is missing, dead, or not streamed in.", "alert-circle")
+        return
+    end
+
+    local character, humanoid, root = GetCharacter()
+    if not character or not humanoid or humanoid.Health <= 0 or not root then
+        Notify("Target Fling", "Your character isn't ready.", "alert-circle")
+        return
+    end
+
+    TargetFling.Running = true
+    TargetFling.Cancel = false
+    TargetFling.Saved = {
+        Character = character,
+        Humanoid = humanoid,
+        Root = root,
+        CFrame = root.CFrame,
+        Anchored = root.Anchored,
+        WalkSpeed = humanoid.WalkSpeed,
+        AutoRotate = humanoid.AutoRotate,
+        PlatformStand = humanoid.PlatformStand,
+        Fly = Settings.Fly,
+        Noclip = Settings.Noclip,
+    }
+
+    Runtime.Action = "TargetFling"
+    Settings.Fly = false
+    pcall(DestroyFly)
+    Settings.Noclip = false
+    pcall(RestoreNoclip)
+
+    task.spawn(function()
+        local contacted = false
+        local ok, reason = pcall(function()
+            local targetRoot = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+            if not targetRoot then
+                return
+            end
+
+            -- Stage just outside the target. The Humanoid then walks into
+            -- them while the velocity pulse runs, rather than using a long
+            -- teleport/orbit loop that tends to launch the local character.
+            local predicted = targetRoot.Position
+            local v = targetRoot.AssemblyLinearVelocity
+            predicted += Vector3.new(
+                math.clamp(v.X * 0.04, -3, 3), 0,
+                math.clamp(v.Z * 0.04, -3, 3)
+            )
+
+            local back = targetRoot.CFrame.LookVector * 5.0
+            local stage = Vector3.new(
+                predicted.X + back.X,
+                targetRoot.Position.Y,
+                predicted.Z + back.Z
+            )
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+            root.CFrame = CFrame.lookAt(stage, Vector3.new(predicted.X, stage.Y, predicted.Z))
+            humanoid.Sit = false
+            humanoid.PlatformStand = false
+            humanoid.AutoRotate = true
+            humanoid.WalkSpeed = math.max(TargetFling.Saved.WalkSpeed, 38)
+            RunService.Heartbeat:Wait()
+
+            local start = os.clock()
+            while Runtime.Running and not TargetFling.Cancel and
+                os.clock() - start < TargetFling.Duration and FlingTargetValid(target) do
+                if LocalPlayer.Character ~= character or not root.Parent then
+                    break
+                end
+                targetRoot = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+                if not targetRoot then
+                    break
+                end
+
+                local delta = targetRoot.Position - root.Position
+                local planar = Vector3.new(delta.X, 0, delta.Z)
+                local distance = planar.Magnitude
+                if distance > 0.03 then
+                    humanoid:Move(planar.Unit, false)
+                end
+                if distance <= 3.2 then
+                    contacted = true
+                end
+
+                -- SALTY Walk Fling pulse. Restore normal velocity each frame.
+                local oldVelocity = root.Velocity
+                root.Velocity = oldVelocity * TargetFling.Power +
+                    Vector3.new(0, TargetFling.Power, 0)
+                RunService.RenderStepped:Wait()
+                if root and root.Parent then
+                    root.Velocity = oldVelocity
+                end
+            end
+        end)
+
+        RestoreFromFling()
+        if not ok then
+            Notify("Target Fling", "Error; attempted safe return: " .. tostring(reason), "alert-triangle")
+        elseif Runtime.Running then
+            Notify("Target Fling",
+                (contacted and "Contact attempted" or "Contact not confirmed") ..
+                " with " .. target.Name .. ". Returned to your saved spot.",
+                "rotate-ccw")
+        end
+    end)
+end
+
+MovementTab:Section({
+    Title = "Target Fling & Return",
+})
+
+MovementTab:Input({
+    Title = "Target player",
+    Desc = "Enter a username or an unambiguous display-name prefix.",
+    Placeholder = "Username...",
+    Callback = function(value)
+        TargetFling.Query = tostring(value or "")
+    end,
+})
+
+MovementTab:Slider({
+    Title = "Fling Power",
+    Desc = "Velocity multiplier for local contact pulses.",
+    Value = {Min = 500, Max = 15000, Default = 10000},
+    Step = 500,
+    Callback = function(value)
+        TargetFling.Power = math.clamp(tonumber(value) or 10000, 500, 15000)
+    end,
+})
+
+MovementTab:Slider({
+    Title = "Fling Contact Duration",
+    Desc = "Seconds attempting close-range contact before returning.",
+    Value = {Min = 0.3, Max = 1.6, Default = 0.8},
+    Step = 0.1,
+    Callback = function(value)
+        TargetFling.Duration = math.clamp(tonumber(value) or 0.8, 0.3, 1.6)
+    end,
+})
+
+MovementTab:Button({
+    Title = "Fling Target & Return",
+    Icon = "zap",
+    Callback = function()
+        local player, err = FindFlingTarget(TargetFling.Query)
+        if not player then
+            Notify("Target Fling", err, "alert-circle")
+            return
+        end
+        StartTargetFling(player)
+    end,
+})
+
+MovementTab:Button({
+    Title = "Fling Murderer & Return",
+    Icon = "sword",
+    Callback = function()
+        UpdateRoleCache()
+        StartTargetFling(Runtime.Murderer)
+    end,
+})
+
+MovementTab:Button({
+    Title = "Fling Sheriff & Return",
+    Icon = "shield",
+    Callback = function()
+        UpdateRoleCache()
+        StartTargetFling(Runtime.Sheriff)
+    end,
+})
+
+MovementTab:Button({
+    Title = "Cancel Fling & Return",
+    Icon = "rotate-ccw",
+    Callback = function()
+        TargetFling.Cancel = true
+        if not TargetFling.Running then
+            Notify("Target Fling", "No target fling is active.", "info")
+        end
+    end,
+})
+
+-- Ensure singleton cleanup also cancels the fling and returns the player.
+local _SaltyOriginalDestroy = Runtime.Destroy
+function Runtime:Destroy(...)
+    TargetFling.Cancel = true
+    if TargetFling.Saved then
+        -- Never leave the user near a target when closing the hub.
+        pcall(RestoreFromFling)
+    end
+    return _SaltyOriginalDestroy(self, ...)
+end
